@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Birthday - IT Department 25/26 Set</title>
+  <meta name="description" content="Register your birthday details for the Information Technology Department 25/26 Set Birthday Network.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'><path d='M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z'/></svg>">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="shader.js" defer></script>
+  <script src="motion.js" defer></script>
+</head>
+<body>
+  <!-- WebGL Dynamic Shader Background -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <div class="site-wrapper">
+    <!-- Header -->
+    <header class="header-nav">
+      <div class="container header-container">
+        <a href="index.html" class="brand">
+          <div class="brand-badge">
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="4" width="18" height="18" rx="4" ry="4"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <path d="M12 14v4m-2-2h4"></path>
+            </svg>
+          </div>
+          <div>
+            <span style="font-size: 1.15rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">IT DEPT 25/26</span>
+            <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 400;">Birthday Registration</div>
+          </div>
+        </a>
+
+        <!-- Desktop Navigation -->
+        <nav class="nav-links-desktop">
+          <a href="index.html" class="btn-liquid" style="font-size: 0.8rem; padding: 0.4rem 0.9rem;">
+            &larr; Back to Home
+          </a>
+        </nav>
+
+        <!-- Mobile Drawer Toggle Button -->
+        <button class="mobile-toggle-btn" id="mobileMenuBtn" aria-label="Open Navigation Menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile Slide-out Drawer Menu -->
+    <div class="mobile-drawer" id="mobileDrawer">
+      <button class="mobile-drawer-close" id="mobileDrawerClose" aria-label="Close Menu">&times;</button>
+      <a href="index.html" class="btn-liquid" style="width: 100%; font-size: 0.85rem;">
+        &larr; Back to Home Page
+      </a>
+    </div>
+
+    <!-- Main Compact Registration Section -->
+    <main class="form-section container">
+      <div style="max-width: 680px; margin: 0 auto;">
+        <div class="glass-card">
+          <div style="text-align: center; margin-bottom: 1.25rem;">
+            <h1 style="font-size: clamp(1.2rem, 3.5vw, 1.6rem); margin-bottom: 0.25rem; font-weight: 700;">
+              Register Your <span class="gradient-text">Birthday</span>
+            </h1>
+            <p style="color: var(--text-muted); font-size: clamp(0.75rem, 2vw, 0.84rem); font-weight: 300;">
+              Information Technology Department 25/26 Set.
+            </p>
+          </div>
+
+          <form id="birthdayForm" enctype="multipart/form-data">
+            <div class="form-grid">
+              <div class="form-group" style="grid-column: span 2;">
+                <label class="form-label" for="fullName">Full Name <span style="color: var(--danger);">*</span></label>
+                <input type="text" id="fullName" name="fullName" class="form-control" placeholder="e.g. Samuel Adewale" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="nickname">Preferred / Nickname</label>
+                <input type="text" id="nickname" name="nickname" class="form-control" placeholder="e.g. Sammy / CodeWizard">
+              </div>
+
+              <!-- HeroUI Date Picker Component Integration -->
+              <div class="form-group" style="position: relative;">
+                <label class="form-label">Birth Date <span style="color: var(--danger);">*</span></label>
+                
+                <div class="date-range-picker" id="datePickerComponent">
+                  <div class="date-input-group" id="dateInputGroup">
+                    <div class="date-input-group__input">
+                      <span class="date-range-picker__input">
+                        <span class="date-input-group__segment" id="segMonth" tabindex="0" role="spinbutton" aria-label="month, ">06</span>
+                        <span class="date-input-group__literal">/</span>
+                        <span class="date-input-group__segment" id="segDay" tabindex="0" role="spinbutton" aria-label="day, ">15</span>
+                        <span class="date-input-group__literal">/</span>
+                        <span class="date-input-group__segment" id="segYear" tabindex="0" role="spinbutton" aria-label="year, ">2004</span>
+                      </span>
+                    </div>
+                    
+                    <div class="date-input-group__suffix">
+                      <button type="button" class="date-range-picker__trigger" id="calendarTrigger" aria-label="Calendar">
+                        <span class="date-range-picker__trigger-indicator">
+                          <svg fill="none" height="16" viewBox="0 0 13 14" width="16" xmlns="http://www.w3.org/2000/svg">
+                            <path clip-rule="evenodd" d="M3.75 4.5A.75.75 0 0 1 3 3.75v-.748a1.5 1.5 0 0 0-1.5 1.5v1h10v-1a1.5 1.5 0 0 0-1.5-1.5v.75a.75.75 0 1 1-1.5 0v-.75h-4v.747a.75.75 0 0 1-.75.75ZM8.5 1.501h-4V.75a.75.75 0 0 0-1.5 0v.752a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h7a3 3 0 0 0 3-3v-6a3 3 0 0 0-3-3v-.75a.75.75 0 0 0-1.5 0v.75Zm-7 5.5v3.5a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5v-3.5h-10Z" fill="currentColor" fill-rule="evenodd" />
+                          </svg>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Calendar Popover Dialog -->
+                  <div class="date-range-picker__popover" id="calendarPopover" style="display: none;">
+                    <div class="calendar">
+                      <header class="calendar__header">
+                        <button type="button" class="calendar-year-picker__trigger" id="yearHeaderBtn">
+                          <span id="calendarHeading">June 2004</span>
+                          <span style="font-size: 0.8rem; color: var(--text-muted);">▼</span>
+                        </button>
+                        <div style="display: flex; gap: 2px;">
+                          <button type="button" class="calendar__nav-button" id="prevMonthBtn">‹</button>
+                          <button type="button" class="calendar__nav-button" id="nextMonthBtn">›</button>
+                        </div>
+                      </header>
+
+                      <table class="calendar__grid">
+                        <thead>
+                          <tr>
+                            <th class="calendar__header-cell">Sun</th>
+                            <th class="calendar__header-cell">Mon</th>
+                            <th class="calendar__header-cell">Tue</th>
+                            <th class="calendar__header-cell">Wed</th>
+                            <th class="calendar__header-cell">Thu</th>
+                            <th class="calendar__header-cell">Fri</th>
+                            <th class="calendar__header-cell">Sat</th>
+                          </tr>
+                        </thead>
+                        <tbody id="calendarGridBody">
+                          <!-- Populated via JS -->
+                        </tbody>
+                      </table>
+
+                      <!-- Year Picker Grid overlay -->
+                      <div class="calendar-year-picker__year-grid" id="yearPickerGrid" style="display: none;">
+                        <!-- Populated via JS -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Hidden inputs for backend submission -->
+                <input type="hidden" id="birthMonth" name="birthMonth" value="6" required>
+                <input type="hidden" id="birthDay" name="birthDay" value="15" required>
+                <input type="hidden" id="birthYear" name="birthYear" value="2004">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="phone">WhatsApp Phone Number <span style="color: var(--danger);">*</span></label>
+                <input type="tel" id="phone" name="phone" class="form-control" placeholder="e.g. 08012345678" required>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Receives your midnight WhatsApp birthday message.</div>
+              </div>
+
+              <div class="form-group" style="grid-column: span 2;">
+                <label class="form-label" for="email">Email Address <span style="color: var(--danger);">*</span></label>
+                <input type="email" id="email" name="email" class="form-control" placeholder="e.g. student@gmail.com" required>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Receives your Birthday Card & welcome email.</div>
+              </div>
+            </div>
+
+            <!-- Drag-and-Drop Photo Upload Zone -->
+            <div class="form-group">
+              <label class="form-label">Profile Picture <span style="color: var(--text-muted); font-size: 0.74rem;">(Displayed in Group flyer)</span></label>
+              <div class="file-upload-zone" onclick="document.getElementById('photoInput').click()">
+                <input type="file" id="photoInput" name="photo" accept="image/*" style="display: none;" onchange="handlePhotoSelect(event)">
+                <div id="uploadPlaceholder">
+                  <svg class="upload-icon-svg" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  <p style="font-weight: 500; font-size: 0.82rem;">Click or drag profile photo here</p>
+                  <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">PNG, JPG, or JPEG up to 10MB</p>
+                </div>
+                <div id="photoPreviewContainer" style="display: none;">
+                  <img id="photoPreview" class="preview-avatar" src="" alt="Selected Photo">
+                  <p id="fileNameDisplay" style="font-size: 0.78rem; color: var(--accent-primary); margin-top: 0.3rem; font-weight: 500;"></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="customNote">Special Wish Note <span style="color: var(--text-muted); font-size: 0.72rem;">(Optional)</span></label>
+              <textarea id="customNote" name="customNote" class="form-control" rows="2" placeholder="e.g. Code, coffee, and growth" style="height: auto;"></textarea>
+            </div>
+
+            <!-- Centralized Proportional Submit Button -->
+            <div style="text-align: center; margin-top: 1.25rem;">
+              <button type="submit" id="submitBtn" class="btn-liquid btn-liquid-primary" style="min-width: 220px; max-width: 280px; width: 85%; padding: 0.75rem 1.5rem; font-size: 0.88rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto;">
+                <span>Save & Register Details</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer style="border-top: 1px solid var(--border-color); padding: 1.25rem 0; text-align: center; color: var(--text-muted); font-size: 0.76rem;">
+      <div class="container">
+        <p>Information Technology Department 25/26 Set &copy; 2026. Official Birthday Network.</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Success Confirmation Modal -->
+  <div id="successModal" class="modal-backdrop">
+    <div class="modal-content">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(56, 189, 248, 0.15); border: 1px solid var(--accent-primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.65rem auto;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h2 class="gradient-text" style="font-size: 1.35rem; margin-bottom: 0.3rem; font-weight: 700;">Registration Complete</h2>
+      <p style="color: var(--text-main); font-size: 0.82rem; margin-bottom: 0.85rem; line-height: 1.4;" id="modalMessage">
+        Your details have been saved for IT Dept 25/26 Set.
+      </p>
+      <div style="background: rgba(10, 16, 30, 0.8); border-radius: var(--radius-md); padding: 0.75rem; margin-bottom: 1rem; text-align: left; border: 1px solid var(--border-color);">
+        <p style="font-size: 0.78rem; color: var(--accent-primary); margin-bottom: 0.25rem; font-weight: 600;">Instant Confirmation Dispatched:</p>
+        <ul style="font-size: 0.74rem; color: var(--text-muted); padding-left: 1rem; line-height: 1.5;">
+          <li>Direct WhatsApp Welcome message sent to your contact.</li>
+          <li>Welcome email dispatched to your inbox.</li>
+          <li>12:00 AM Midnight & 9:00 AM Group Wishes scheduled.</li>
+        </ul>
+      </div>
+      <a href="index.html" class="btn-liquid btn-liquid-primary" style="width: 100%; border-radius: var(--radius-md); text-align: center; display: block;">
+        Return to Home Page
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Mobile Drawer Handlers
+    const mobileDrawer = document.getElementById('mobileDrawer');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileDrawerClose = document.getElementById('mobileDrawerClose');
+
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileDrawer.classList.add('active');
+    });
+
+    mobileDrawerClose.addEventListener('click', () => {
+      mobileDrawer.classList.remove('active');
+    });
+
+    // --- HeroUI DateRangePicker JavaScript Logic ---
+    let currentMonth = 5; // June (0-indexed)
+    let currentYear = 2004;
+    let selectedDay = 15;
+
+    const monthsList = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    const calendarTrigger = document.getElementById('calendarTrigger');
+    const dateInputGroup = document.getElementById('dateInputGroup');
+    const calendarPopover = document.getElementById('calendarPopover');
+    const yearHeaderBtn = document.getElementById('yearHeaderBtn');
+    const yearPickerGrid = document.getElementById('yearPickerGrid');
+    const calendarHeading = document.getElementById('calendarHeading');
+    const calendarGridBody = document.getElementById('calendarGridBody');
+
+    const segMonth = document.getElementById('segMonth');
+    const segDay = document.getElementById('segDay');
+    const segYear = document.getElementById('segYear');
+
+    function toggleCalendar(e) {
+      if (e) e.stopPropagation();
+      const isOpen = calendarPopover.style.display === 'block';
+      calendarPopover.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) renderCalendarGrid();
+    }
+
+    calendarTrigger.addEventListener('click', toggleCalendar);
+    dateInputGroup.addEventListener('click', (e) => {
+      if (!e.target.closest('#calendarTrigger')) {
+        toggleCalendar(e);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('datePickerComponent').contains(e.target)) {
+        calendarPopover.style.display = 'none';
+      }
+    });
+
+    yearHeaderBtn.addEventListener('click', () => {
+      const yearOpen = yearPickerGrid.style.display === 'grid';
+      yearPickerGrid.style.display = yearOpen ? 'none' : 'grid';
+      if (!yearOpen) renderYearGrid();
+    });
+
+    document.getElementById('prevMonthBtn').addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+      renderCalendarGrid();
+    });
+
+    document.getElementById('nextMonthBtn').addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+      renderCalendarGrid();
+    });
+
+    function renderCalendarGrid() {
+      calendarHeading.textContent = `${monthsList[currentMonth]} ${currentYear}`;
+      calendarGridBody.innerHTML = '';
+
+      const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+      let dayCounter = 1;
+      for (let row = 0; row < 6; row++) {
+        if (dayCounter > daysInMonth) break;
+        const tr = document.createElement('tr');
+
+        for (let col = 0; col < 7; col++) {
+          const td = document.createElement('td');
+          if (row === 0 && col < firstDayIndex) {
+            td.innerHTML = '<button type="button" class="calendar__cell" style="opacity: 0.2;" disabled></button>';
+          } else if (dayCounter <= daysInMonth) {
+            const dayNum = dayCounter;
+            const isSelected = (dayNum === selectedDay && (currentMonth + 1) === parseInt(document.getElementById('birthMonth').value) && currentYear === parseInt(document.getElementById('birthYear').value));
+            
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'calendar__cell';
+            if (isSelected) btn.setAttribute('data-selected', 'true');
+            btn.textContent = dayNum;
+
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              selectedDay = dayNum;
+              updateDateSelection(currentMonth + 1, selectedDay, currentYear);
+              calendarPopover.style.display = 'none';
+            });
+
+            td.appendChild(btn);
+            dayCounter++;
+          }
+          tr.appendChild(td);
+        }
+        calendarGridBody.appendChild(tr);
+      }
+    }
+
+    function renderYearGrid() {
+      yearPickerGrid.innerHTML = '';
+      for (let y = 1970; y <= 2010; y++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'calendar-year-picker__year-cell';
+        if (y === currentYear) btn.setAttribute('data-selected', 'true');
+        btn.textContent = y;
+
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentYear = y;
+          yearPickerGrid.style.display = 'none';
+          renderCalendarGrid();
+        });
+        yearPickerGrid.appendChild(btn);
+      }
+    }
+
+    function updateDateSelection(m, d, y) {
+      document.getElementById('birthMonth').value = m;
+      document.getElementById('birthDay').value = d;
+      document.getElementById('birthYear').value = y;
+
+      segMonth.textContent = String(m).padStart(2, '0');
+      segDay.textContent = String(d).padStart(2, '0');
+      segYear.textContent = String(y);
+    }
+
+    // Photo selection preview
+    function handlePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('uploadPlaceholder').style.display = 'none';
+          document.getElementById('photoPreviewContainer').style.display = 'block';
+          document.getElementById('photoPreview').src = e.target.result;
+          document.getElementById('fileNameDisplay').textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Handle Form Submit
+    const form = document.getElementById('birthdayForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Saving details...</span>';
+
+      const formData = new FormData(form);
+
+      try {
+        const response = await fetch('/api/students', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById('modalMessage').textContent = `Thank you, ${data.student.fullName}. Your birthday details are recorded for Information Technology Department 25/26 Set.`;
+          document.getElementById('successModal').classList.add('active');
+          form.reset();
+          document.getElementById('uploadPlaceholder').style.display = 'block';
+          document.getElementById('photoPreviewContainer').style.display = 'none';
+        } else {
+          alert('Error: ' + (data.error || 'Failed to submit details.'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Server communication error. Please try again.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Save & Register Details</span>';
+      }
+    });
+  </script>
+</body>
+</html>

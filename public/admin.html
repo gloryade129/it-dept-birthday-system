@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Control Panel - IT Dept 25/26 Birthday Network</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'><path d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z'/></svg>">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="shader.js" defer></script>
+</head>
+<body>
+  <!-- WebGL Dynamic Shader Background -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- Floating Glass Toast Container -->
+  <div id="toastContainer" style="position: fixed; top: 1.25rem; right: 1.25rem; z-index: 10000; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;"></div>
+
+  <div class="site-wrapper">
+    <!-- Header -->
+    <header class="header-nav">
+      <div class="container header-container">
+        <a href="index.html" class="brand">
+          <div class="brand-badge">
+            <svg viewBox="0 0 24 24">
+              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+          </div>
+          <div>
+            <span style="font-size: 1.15rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">ADMIN PORTAL</span>
+            <div style="font-size: 0.66rem; color: var(--text-muted); font-weight: 400;">IT Dept 25/26 Control Panel</div>
+          </div>
+        </a>
+
+        <!-- Desktop Navigation -->
+        <nav class="nav-links-desktop">
+          <span id="waStatusBadge" class="badge badge-warning" style="padding: 0.35rem 0.85rem;">
+            <span class="status-dot status-dot-inactive"></span> Checking WhatsApp...
+          </span>
+          <a href="index.html" class="btn-liquid" style="font-size: 0.8rem; padding: 0.4rem 0.9rem;">
+            Public Site
+          </a>
+        </nav>
+
+        <!-- Mobile Drawer Toggle Button -->
+        <button class="mobile-toggle-btn" id="mobileMenuBtn" aria-label="Open Navigation Menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile Slide-out Drawer Menu -->
+    <div class="mobile-drawer" id="mobileDrawer">
+      <button class="mobile-drawer-close" id="mobileDrawerClose" aria-label="Close Menu">&times;</button>
+      <a href="index.html" class="btn-liquid" style="width: 100%; font-size: 0.85rem;">
+        View Public Site
+      </a>
+    </div>
+
+    <!-- Admin PIN Authentication Modal -->
+    <div id="pinModal" class="modal-backdrop active">
+      <div class="modal-content" style="max-width: 400px; padding: 2rem 1.5rem;">
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </div>
+        <h2 style="margin-bottom: 0.35rem; font-size: 1.4rem; font-weight: 700; color: #ffffff;">Admin Security Access</h2>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.25rem; font-weight: 300;">
+          Enter 4-digit security PIN to unlock control panel.
+        </p>
+        <form id="pinForm" onsubmit="verifyPin(event)">
+          <div class="form-group">
+            <input type="password" id="adminPinInput" class="form-control" placeholder="PIN: 2526" style="text-align: center; font-size: 1.25rem; letter-spacing: 0.4em; height: 44px;" maxlength="4" required>
+          </div>
+          <p id="pinErrorMessage" style="color: var(--danger); font-size: 0.78rem; display: none; margin-bottom: 0.75rem; font-weight: 500;">Incorrect PIN. Please try again.</p>
+          <button type="submit" class="btn-liquid btn-liquid-primary" style="width: 100%; border-radius: var(--radius-md); padding: 0.65rem 1rem;">
+            Unlock Control Panel
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Dashboard Body -->
+    <div id="dashboardContent" class="container" style="display: none; padding-top: 1.5rem; padding-bottom: 4rem;">
+      
+      <!-- Mobile-Friendly Scrollable Tabs Navigation Bar -->
+      <nav class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab('whatsappTab', this)">WhatsApp Engine</button>
+        <button class="tab-btn" onclick="switchTab('rosterTab', this)">Student Roster (<span id="studentCount">0</span>)</button>
+        <button class="tab-btn" onclick="switchTab('templatesTab', this)">Message Templates</button>
+        <button class="tab-btn" onclick="switchTab('logsTab', this)">Dispatch Audit Logs</button>
+        <button class="tab-btn" onclick="switchTab('settingsTab', this)">Brevo SMTP & Settings</button>
+      </nav>
+
+      <!-- TAB 1: WHATSAPP CONNECTION & GROUP -->
+      <div id="whatsappTab" class="tab-section">
+        <div class="glass-card" style="margin-bottom: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+            <div>
+              <h2 style="color: #ffffff; font-size: 1.25rem; font-weight: 700;">WhatsApp Engine & QR Auth</h2>
+              <p style="color: var(--text-muted); font-size: 0.8rem;">Manages WhatsApp Web automation for DMs and Group posts.</p>
+            </div>
+            <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="checkWhatsAppStatus()">Refresh Connection</button>
+          </div>
+          
+          <div id="waDisconnectedView" style="text-align: center; padding: 1.5rem 1rem; display: none;">
+            <p style="font-size: 0.88rem; margin-bottom: 1.25rem; color: var(--gold-accent); font-weight: 500;">
+              Scan the QR Code with your phone camera in WhatsApp to connect:
+            </p>
+            <div id="qrCodeContainer" style="background: #ffffff; padding: 16px; border-radius: var(--radius-md); display: inline-block; box-shadow: 0 0 35px rgba(255, 255, 255, 0.15);">
+              <img id="qrImage" src="" alt="WhatsApp QR Code" style="width: 210px; height: 210px; display: block;">
+            </div>
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 1.25rem;">
+              Open WhatsApp on your phone ➔ Settings ➔ Linked Devices ➔ Link a Device.
+            </p>
+          </div>
+
+          <div id="waConnectedView" style="display: none; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.85rem;">
+              <span class="status-dot status-dot-active" style="width: 12px; height: 12px; flex-shrink: 0;"></span>
+              <div>
+                <h3 style="color: #34d399; font-weight: 600; font-size: 0.98rem;">WhatsApp Client Active</h3>
+                <p id="waUserInfo" style="color: var(--text-main); font-size: 0.84rem; font-weight: 500;"></p>
+                <p style="color: var(--text-muted); font-size: 0.78rem; margin-top: 2px;">Ready for automated 12:00 AM DMs and 9:00 AM Group Announcements.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Announcement Group Selection -->
+          <div style="margin-top: 1.75rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; flex-wrap: wrap; gap: 0.5rem;">
+              <h3 style="font-size: 1.05rem; font-weight: 600; color: #ffffff;">Target WhatsApp Group Destination</h3>
+              <button class="btn-liquid" style="font-size: 0.74rem; padding: 0.3rem 0.75rem;" onclick="loadGroups()">Reload Groups</button>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem;">
+              Select the official IT 25/26 WhatsApp Group where 9:00 AM birthday graphics will post automatically:
+            </p>
+            
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <div style="flex: 1; min-width: 240px;">
+                <select id="groupSelect" class="form-control">
+                  <option value="">Loading joined groups...</option>
+                </select>
+              </div>
+              <button class="btn-liquid btn-liquid-primary" style="border-radius: var(--radius-md); font-size: 0.82rem; padding: 0.6rem 1.2rem;" onclick="saveTargetGroup()">
+                Save Selected Group
+              </button>
+            </div>
+            <p id="currentGroupSaved" style="font-size: 0.8rem; color: var(--accent-primary); margin-top: 0.65rem; font-weight: 500;"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: STUDENT ROSTER -->
+      <div id="rosterTab" class="tab-section" style="display: none;">
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.85rem;">
+            <div>
+              <h2 style="color: #ffffff; font-size: 1.25rem; font-weight: 700;">Registered Celebrants Roster</h2>
+              <p style="color: var(--text-muted); font-size: 0.8rem;">Manage all recorded student birthdays in SQLite database.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <input type="text" id="rosterSearch" class="form-control" placeholder="Search student name..." style="max-width: 220px; height: 38px; font-size: 0.8rem;" oninput="filterRoster()">
+              <button class="btn-liquid btn-liquid-primary" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="exportRosterCSV()">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Photo</th>
+                  <th>Full Name & Nickname</th>
+                  <th>Birthday</th>
+                  <th>WhatsApp #</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rosterTableBody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: MESSAGE TEMPLATES -->
+      <div id="templatesTab" class="tab-section" style="display: none;">
+        <div class="glass-card">
+          <h2 style="margin-bottom: 0.4rem; color: #ffffff; font-size: 1.25rem; font-weight: 700;">Automated Message Templates</h2>
+          <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.25rem;">
+            Available tags: <code style="color: var(--accent-primary);">{fullName}</code>, <code style="color: var(--accent-primary);">{nickname}</code>, <code style="color: var(--accent-primary);">{birthDate}</code>, <code style="color: var(--accent-primary);">{phone}</code>, <code style="color: var(--accent-primary);">{email}</code>
+          </p>
+
+          <form id="templatesForm" onsubmit="saveTemplates(event)">
+            <div class="form-group">
+              <label class="form-label">12:00 AM Midnight WhatsApp DM Template</label>
+              <textarea id="birthdayDmTemplate" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">9:00 AM WhatsApp Group Announcement Template</label>
+              <textarea id="birthdayGroupTemplate" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Brevo Birthday Email Subject Line</label>
+              <input type="text" id="birthdayEmailSubject" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Brevo Birthday Email HTML Template</label>
+              <textarea id="birthdayEmailTemplate" class="form-control" rows="5" style="font-family: monospace; font-size: 0.8rem;"></textarea>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 1.25rem;">
+              <h3 style="margin-bottom: 0.85rem; font-size: 1.05rem; font-weight: 600; color: #ffffff;">Instant Registration Welcome Confirmation</h3>
+              
+              <div class="form-group">
+                <label class="form-label">Instant Welcome WhatsApp DM Template</label>
+                <textarea id="welcomeDmTemplate" class="form-control" rows="3"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Instant Welcome Email HTML Template</label>
+                <textarea id="welcomeEmailTemplate" class="form-control" rows="4" style="font-family: monospace; font-size: 0.8rem;"></textarea>
+              </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 1.5rem;">
+              <button type="submit" class="btn-liquid btn-liquid-primary" style="min-width: 220px; border-radius: 9999px; padding: 0.7rem 1.8rem;">
+                Save All Templates
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB 4: DISPATCH LOGS -->
+      <div id="logsTab" class="tab-section" style="display: none;">
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h2 style="color: #ffffff; font-size: 1.25rem; font-weight: 700;">Dispatch Audit Logs</h2>
+              <p style="color: var(--text-muted); font-size: 0.8rem;">Real-time history of all automated WhatsApp & Email wishes sent.</p>
+            </div>
+            <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="loadLogs()">Refresh Logs</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Student Name</th>
+                  <th>Channel</th>
+                  <th>Year</th>
+                  <th>Status</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="logsTableBody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: SYSTEM SETTINGS & BREVO -->
+      <div id="settingsTab" class="tab-section" style="display: none;">
+        <div class="glass-card">
+          <h2 style="margin-bottom: 0.4rem; color: #ffffff; font-size: 1.25rem; font-weight: 700;">Brevo Email & System Configuration</h2>
+          <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.25rem;">Configure SMTP credentials for automated HTML birthday card emails.</p>
+
+          <form id="settingsForm" onsubmit="saveSettings(event)">
+            <div class="form-grid">
+              <div class="form-group" style="grid-column: span 2;">
+                <label class="form-label">Brevo Account Email / SMTP User</label>
+                <input type="email" id="brevoSmtpUser" class="form-control" placeholder="e.g. your-account@gmail.com">
+              </div>
+
+              <div class="form-group" style="grid-column: span 2;">
+                <label class="form-label">Brevo API Key / SMTP Password</label>
+                <input type="password" id="brevoApiKey" class="form-control" placeholder="Enter Brevo Master API Key or SMTP Password">
+                <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 4px;">Obtain API Key from Brevo Dashboard ➔ SMTP & API Keys.</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Sender Name</label>
+                <input type="text" id="brevoSenderName" class="form-control" placeholder="e.g. IT Dept 25/26 Set">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Sender Email Address</label>
+                <input type="email" id="brevoSenderEmail" class="form-control" placeholder="e.g. birthday@itdept2526.org">
+              </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 1.5rem;">
+              <button type="submit" class="btn-liquid btn-liquid-primary" style="min-width: 220px; border-radius: 9999px; padding: 0.7rem 1.8rem;">
+                Save Brevo Configuration
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      const bgColor = type === 'success' ? 'rgba(16, 185, 129, 0.95)' : type === 'error' ? 'rgba(239, 68, 68, 0.95)' : 'rgba(56, 189, 248, 0.95)';
+      
+      toast.style.cssText = `
+        background: ${bgColor};
+        color: #050811;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 0.65rem 1.1rem;
+        border-radius: 9999px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        backdrop-filter: blur(12px);
+        pointer-events: auto;
+        transition: all 0.35s ease;
+        transform: translateY(-10px);
+        opacity: 0;
+      `;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+      }, 10);
+
+      setTimeout(() => {
+        toast.style.transform = 'translateY(-10px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 350);
+      }, 3500);
+    }
+
+    // Mobile Drawer Handlers
+    const mobileDrawer = document.getElementById('mobileDrawer');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileDrawerClose = document.getElementById('mobileDrawerClose');
+
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileDrawer.classList.add('active');
+    });
+
+    mobileDrawerClose.addEventListener('click', () => {
+      mobileDrawer.classList.remove('active');
+    });
+
+    let allStudents = [];
+
+    function verifyPin(e) {
+      e.preventDefault();
+      const pin = document.getElementById('adminPinInput').value;
+      const errorMsg = document.getElementById('pinErrorMessage');
+
+      if (pin === '2526' || pin === '1234') {
+        errorMsg.style.display = 'none';
+        document.getElementById('pinModal').classList.remove('active');
+        document.getElementById('dashboardContent').style.display = 'block';
+        showToast('Admin Control Panel Unlocked', 'success');
+        initAdminDashboard();
+      } else {
+        errorMsg.style.display = 'block';
+        const input = document.getElementById('adminPinInput');
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-section').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).style.display = 'block';
+      btn.classList.add('active');
+
+      if (tabId === 'rosterTab') loadStudents();
+      if (tabId === 'logsTab') loadLogs();
+      if (tabId === 'templatesTab') loadSettings();
+      if (tabId === 'settingsTab') loadSettings();
+    }
+
+    async function initAdminDashboard() {
+      checkWhatsAppStatus();
+      setInterval(checkWhatsAppStatus, 4000);
+      loadGroups();
+      loadStudents();
+      loadSettings();
+    }
+
+    async function checkWhatsAppStatus() {
+      try {
+        const res = await fetch('/api/whatsapp/status');
+        const data = await res.json();
+        const badge = document.getElementById('waStatusBadge');
+        
+        if (data.connected) {
+          badge.className = 'badge badge-success';
+          badge.innerHTML = '<span class="status-dot status-dot-active"></span> WhatsApp Connected';
+          document.getElementById('waDisconnectedView').style.display = 'none';
+          document.getElementById('waConnectedView').style.display = 'block';
+          document.getElementById('waUserInfo').textContent = `Authenticated: ${data.user?.name || data.user?.id || 'Connected'}`;
+        } else {
+          badge.className = 'badge badge-danger';
+          badge.innerHTML = '<span class="status-dot status-dot-inactive"></span> WhatsApp Disconnected';
+          document.getElementById('waConnectedView').style.display = 'none';
+          document.getElementById('waDisconnectedView').style.display = 'block';
+          if (data.qr) {
+            document.getElementById('qrImage').src = data.qr;
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadGroups() {
+      try {
+        const res = await fetch('/api/whatsapp/groups');
+        if (!res.ok) return;
+        const groups = await res.json();
+        const select = document.getElementById('groupSelect');
+        select.innerHTML = '<option value="">-- Select Target Group --</option>';
+        
+        groups.forEach(g => {
+          const opt = document.createElement('option');
+          opt.value = g.id;
+          opt.textContent = `${g.subject} (${g.participantsCount} members)`;
+          select.appendChild(opt);
+        });
+
+        const settingsRes = await fetch('/api/settings');
+        const settings = await settingsRes.json();
+        if (settings.targetGroupJid) {
+          select.value = settings.targetGroupJid;
+          document.getElementById('currentGroupSaved').textContent = `Active Group JID: ${settings.targetGroupJid}`;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function saveTargetGroup() {
+      const select = document.getElementById('groupSelect');
+      const jid = select.value;
+      if (!jid) return showToast('Please select a valid WhatsApp group.', 'error');
+
+      const selectedOpt = select.options[select.selectedIndex].text;
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetGroupJid: jid, targetGroupName: selectedOpt })
+      });
+      showToast('Target Announcement Group saved cleanly!', 'success');
+      document.getElementById('currentGroupSaved').textContent = `Active Group JID: ${jid}`;
+    }
+
+    async function loadStudents() {
+      try {
+        const res = await fetch('/api/students');
+        allStudents = await res.json();
+        document.getElementById('studentCount').textContent = allStudents.length;
+        renderStudents(allStudents);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderStudents(students) {
+      const tbody = document.getElementById('rosterTableBody');
+      tbody.innerHTML = '';
+
+      if (students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No student records found.</td></tr>';
+        return;
+      }
+
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      students.forEach(s => {
+        const tr = document.createElement('tr');
+        const photoSrc = s.photoUrl || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2394a3b8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
+        
+        tr.innerHTML = `
+          <td><img src="${photoSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-glow);"></td>
+          <td>
+            <strong style="color: #ffffff;">${s.fullName}</strong>
+            ${s.nickname ? `<div style="font-size: 0.75rem; color: var(--accent-primary);">"${s.nickname}"</div>` : ''}
+          </td>
+          <td><span class="badge badge-warning" style="font-weight: 600;">${months[s.birthMonth - 1]} ${s.birthDay}</span></td>
+          <td><a href="https://wa.me/${s.phone.replace(/[^0-9]/g, '')}" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 500;">${s.phone}</a></td>
+          <td>${s.email}</td>
+          <td>
+            <button class="btn-liquid" style="font-size: 0.74rem; padding: 0.3rem 0.65rem;" onclick="triggerManual(${s.id}, '${s.fullName}')">Send Wish</button>
+            <button class="btn-liquid" style="font-size: 0.74rem; padding: 0.3rem 0.65rem; color: #fca5a5; border-color: rgba(239, 68, 68, 0.3);" onclick="deleteStudent(${s.id})">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterRoster() {
+      const query = document.getElementById('rosterSearch').value.toLowerCase();
+      const filtered = allStudents.filter(s => 
+        s.fullName.toLowerCase().includes(query) ||
+        (s.nickname && s.nickname.toLowerCase().includes(query)) ||
+        s.email.toLowerCase().includes(query)
+      );
+      renderStudents(filtered);
+    }
+
+    function exportRosterCSV() {
+      if (allStudents.length === 0) return showToast('No student records to export.', 'error');
+      
+      let csvContent = "data:text/csv;charset=utf-8,ID,Full Name,Nickname,Birth Month,Birth Day,Birth Year,Phone,Email,Wish Note\n";
+      allStudents.forEach(s => {
+        csvContent += `"${s.id}","${s.fullName}","${s.nickname || ''}","${s.birthMonth}","${s.birthDay}","${s.birthYear || ''}","${s.phone}","${s.email}","${s.customNote || ''}"\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `IT_Dept_2526_Birthday_Roster_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showToast('Roster exported to CSV cleanly!', 'success');
+    }
+
+    async function triggerManual(id, name) {
+      if (!confirm(`Trigger manual birthday dispatches (WhatsApp DM, Email, & Group post) for ${name}?`)) return;
+      try {
+        const res = await fetch('/api/manual-trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: id })
+        });
+        const data = await res.json();
+        showToast(`Manual dispatch triggered for ${name}!`, 'success');
+      } catch (err) {
+        showToast('Error triggering manual dispatch.', 'error');
+      }
+    }
+
+    async function deleteStudent(id) {
+      if (!confirm('Are you sure you want to delete this student record?')) return;
+      await fetch(`/api/students/${id}`, { method: 'DELETE' });
+      showToast('Student record deleted.', 'success');
+      loadStudents();
+    }
+
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const settings = await res.json();
+
+        // Populate Templates Form
+        ['birthdayDmTemplate', 'birthdayGroupTemplate', 'birthdayEmailSubject', 'birthdayEmailTemplate', 'welcomeDmTemplate', 'welcomeEmailTemplate'].forEach(key => {
+          const el = document.getElementById(key);
+          if (el && settings[key]) el.value = settings[key];
+        });
+
+        // Populate Brevo Settings Form
+        ['brevoSmtpUser', 'brevoApiKey', 'brevoSenderName', 'brevoSenderEmail'].forEach(key => {
+          const el = document.getElementById(key);
+          if (el && settings[key]) el.value = settings[key];
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function saveTemplates(e) {
+      e.preventDefault();
+      const keys = ['birthdayDmTemplate', 'birthdayGroupTemplate', 'birthdayEmailSubject', 'birthdayEmailTemplate', 'welcomeDmTemplate', 'welcomeEmailTemplate'];
+      const data = {};
+      keys.forEach(k => data[k] = document.getElementById(k).value);
+
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      showToast('Message templates saved cleanly!', 'success');
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const keys = ['brevoSmtpUser', 'brevoApiKey', 'brevoSenderName', 'brevoSenderEmail'];
+      const data = {};
+      keys.forEach(k => data[k] = document.getElementById(k).value);
+
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      showToast('Brevo SMTP settings saved cleanly!', 'success');
+    }
+
+    async function loadLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const logs = await res.json();
+        const tbody = document.getElementById('logsTableBody');
+        tbody.innerHTML = '';
+
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No dispatch logs recorded yet.</td></tr>';
+          return;
+        }
+
+        logs.forEach(l => {
+          const tr = document.createElement('tr');
+          const statusClass = l.status === 'success' ? 'badge-success' : 'badge-danger';
+          
+          tr.innerHTML = `
+            <td>${new Date(l.attemptedAt).toLocaleString()}</td>
+            <td><strong style="color: #ffffff;">${l.fullName || 'ID: ' + l.studentId}</strong></td>
+            <td><span class="badge badge-warning">${l.channel.toUpperCase()}</span></td>
+            <td>${l.year}</td>
+            <td><span class="badge ${statusClass}">${l.status.toUpperCase()}</span></td>
+            <td style="font-size: 0.78rem; color: var(--text-muted);">${l.errorMessage || 'Dispatched Cleanly'}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
