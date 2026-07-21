@@ -17,7 +17,7 @@
   "author": "IT Dept 25/26",
   "license": "MIT",
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.12",
+    "@whiskeysockets/baileys": "6.17.16",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
