@@ -1,81 +1,176 @@
 const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = path.join(__dirname, 'data', 'birthday_system.db');
+const usePostgres = !!process.env.DATABASE_URL;
+let pgPool = null;
+let sqliteDb = null;
 
-// Ensure data directory exists
-const dataDir = path.dirname(dbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+if (usePostgres) {
+  console.log('🐘 Initializing Cloud PostgreSQL Database Engine...');
+  pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+  });
+} else {
+  console.log('📂 Initializing Local SQLite Database Engine...');
+  const dbPath = path.join(__dirname, 'data', 'birthday_system.db');
+  const dataDir = path.dirname(dbPath);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  sqliteDb = new sqlite3.Database(dbPath);
 }
 
-const db = new sqlite3.Database(dbPath);
+// Convert SQL parameters from SQLite style (?) to PostgreSQL style ($1, $2, ...)
+function formatSqlForPg(sql) {
+  let paramIndex = 1;
+  return sql.replace(/\?/g, () => `$${paramIndex++}`);
+}
 
-// Promisify helper methods for async/await
-db.asyncRun = function (sql, params = []) {
-  return new Promise((resolve, reject) => {
-    this.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
-};
+const db = {
+  asyncRun: function (sql, params = []) {
+    if (usePostgres) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          let pgSql = formatSqlForPg(sql);
+          if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
+            pgSql += ' RETURNING id';
+          }
+          const res = await pgPool.query(pgSql, params);
+          const lastID = res.rows && res.rows[0] ? res.rows[0].id : null;
+          resolve({ lastID, rowCount: res.rowCount });
+        } catch (err) {
+          reject(err);
+        }
+      });
+    } else {
+      return new Promise((resolve, reject) => {
+        sqliteDb.run(sql, params, function (err) {
+          if (err) reject(err);
+          else resolve(this);
+        });
+      });
+    }
+  },
 
-db.asyncGet = function (sql, params = []) {
-  return new Promise((resolve, reject) => {
-    this.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-};
+  asyncGet: function (sql, params = []) {
+    if (usePostgres) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const pgSql = formatSqlForPg(sql);
+          const res = await pgPool.query(pgSql, params);
+          resolve(res.rows[0] || null);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    } else {
+      return new Promise((resolve, reject) => {
+        sqliteDb.get(sql, params, (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        });
+      });
+    }
+  },
 
-db.asyncAll = function (sql, params = []) {
-  return new Promise((resolve, reject) => {
-    this.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  asyncAll: function (sql, params = []) {
+    if (usePostgres) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const pgSql = formatSqlForPg(sql);
+          const res = await pgPool.query(pgSql, params);
+          resolve(res.rows);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    } else {
+      return new Promise((resolve, reject) => {
+        sqliteDb.all(sql, params, (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        });
+      });
+    }
+  }
 };
 
 async function initDatabase() {
-  await db.asyncRun(`
-    CREATE TABLE IF NOT EXISTS students (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      fullName TEXT NOT NULL,
-      nickname TEXT,
-      birthMonth INTEGER NOT NULL,
-      birthDay INTEGER NOT NULL,
-      birthYear INTEGER,
-      phone TEXT NOT NULL,
-      email TEXT NOT NULL,
-      photoUrl TEXT,
-      customNote TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  if (usePostgres) {
+    await db.asyncRun(`
+      CREATE TABLE IF NOT EXISTS students (
+        id SERIAL PRIMARY KEY,
+        fullName VARCHAR(255) NOT NULL,
+        nickname VARCHAR(255),
+        birthMonth INTEGER NOT NULL,
+        birthDay INTEGER NOT NULL,
+        birthYear INTEGER,
+        phone VARCHAR(50) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        photoUrl TEXT,
+        customNote TEXT,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-  await db.asyncRun(`
-    CREATE TABLE IF NOT EXISTS dispatch_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      studentId INTEGER NOT NULL,
-      year INTEGER NOT NULL,
-      channel TEXT NOT NULL,
-      status TEXT NOT NULL,
-      attemptedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      errorMessage TEXT,
-      FOREIGN KEY(studentId) REFERENCES students(id) ON DELETE CASCADE
-    )
-  `);
+    await db.asyncRun(`
+      CREATE TABLE IF NOT EXISTS dispatch_logs (
+        id SERIAL PRIMARY KEY,
+        studentId INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        channel VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        attemptedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        errorMessage TEXT
+      )
+    `);
 
-  await db.asyncRun(`
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    )
-  `);
+    await db.asyncRun(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key VARCHAR(255) PRIMARY KEY,
+        value TEXT
+      )
+    `);
+  } else {
+    await db.asyncRun(`
+      CREATE TABLE IF NOT EXISTS students (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fullName TEXT NOT NULL,
+        nickname TEXT,
+        birthMonth INTEGER NOT NULL,
+        birthDay INTEGER NOT NULL,
+        birthYear INTEGER,
+        phone TEXT NOT NULL,
+        email TEXT NOT NULL,
+        photoUrl TEXT,
+        customNote TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.asyncRun(`
+      CREATE TABLE IF NOT EXISTS dispatch_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        studentId INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        channel TEXT NOT NULL,
+        status TEXT NOT NULL,
+        attemptedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        errorMessage TEXT,
+        FOREIGN KEY(studentId) REFERENCES students(id) ON DELETE CASCADE
+      )
+    `);
+
+    await db.asyncRun(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
+  }
 
   // Initialize default settings if not exists
   const defaults = {
@@ -128,11 +223,15 @@ async function initDatabase() {
   for (const [key, value] of Object.entries(defaults)) {
     const existing = await db.asyncGet('SELECT key FROM settings WHERE key = ?', [key]);
     if (!existing) {
-      await db.asyncRun('INSERT INTO settings (key, value) VALUES (?, ?)', [key, value]);
+      if (usePostgres) {
+        await db.asyncRun('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING', [key, value]);
+      } else {
+        await db.asyncRun('INSERT INTO settings (key, value) VALUES (?, ?)', [key, value]);
+      }
     }
   }
 
-  console.log('✅ SQLite Database initialized successfully.');
+  console.log(`✅ ${usePostgres ? 'PostgreSQL' : 'SQLite'} Database initialized successfully.`);
 }
 
 async function getSetting(key) {
@@ -141,7 +240,11 @@ async function getSetting(key) {
 }
 
 async function setSetting(key, value) {
-  await db.asyncRun('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [key, value]);
+  if (usePostgres) {
+    await db.asyncRun('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value', [key, value]);
+  } else {
+    await db.asyncRun('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [key, value]);
+  }
 }
 
 async function getAllSettings() {
