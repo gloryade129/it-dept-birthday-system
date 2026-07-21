@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "outputDirectory": "public",
   "cleanUrls": true,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://it-dept-birthday-system.pxxl.run/api/$1" },
