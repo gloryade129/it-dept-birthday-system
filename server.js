@@ -17,6 +17,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health Check Endpoints for Cloud Load Balancers & Pxxl Router
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
 });
@@ -212,18 +216,18 @@ app.post('/api/manual-trigger', async (req, res) => {
   }
 });
 
-// Initialize DB, WhatsApp client, and Schedulers on startup
-async function startServer() {
-  await initDatabase();
-  initSchedulers();
-  connectToWhatsApp().catch(err => console.error('WhatsApp init error:', err));
+// Start Express HTTP Server FIRST so Pxxl Proxy Health Checks Pass Instantly
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`=============================================================`);
+  console.log(`🚀 IT Dept 25/26 Birthday Automation System Server Running!`);
+  console.log(`🌐 Host: 0.0.0.0 | Port: ${PORT}`);
+  console.log(`=============================================================`);
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`=============================================================`);
-    console.log(`🚀 IT Dept 25/26 Birthday Automation System Server Running!`);
-    console.log(`🌐 Host: 0.0.0.0 | Port: ${PORT}`);
-    console.log(`=============================================================`);
+  // Initialize DB, WhatsApp client, and Schedulers in background
+  initDatabase().then(() => {
+    initSchedulers();
+    connectToWhatsApp().catch(err => console.error('WhatsApp init error:', err.message));
+  }).catch(err => {
+    console.error('Database init warning:', err.message);
   });
-}
-
-startServer();
+});
