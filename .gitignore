@@ -6,3 +6,5 @@ public/uploads/
 public/flyers/
 .vercel/
 *.log
+
+.vercel
