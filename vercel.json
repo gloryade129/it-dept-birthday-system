@@ -1,11 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "public/**/*", "use": "@vercel/static" }
-  ],
+  "cleanUrls": true,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://it-dept-birthday-system.pxxl.run/api/$1" },
-    { "source": "/uploads/(.*)", "destination": "https://it-dept-birthday-system.pxxl.run/uploads/$1" },
-    { "source": "/(.*)", "destination": "/public/$1" }
+    { "source": "/uploads/(.*)", "destination": "https://it-dept-birthday-system.pxxl.run/uploads/$1" }
   ]
 }

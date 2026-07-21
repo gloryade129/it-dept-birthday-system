@@ -1,10 +1,12 @@
 /**
  * WebGL Shader Background Renderer using Three.js
- * Restored exact shader provided by user
+ * Optimized for Ultra-Low Mobile Data & Battery Usage
  */
 function initWebGLShader(canvasId = 'webgl-canvas') {
   const canvas = document.getElementById(canvasId);
   if (!canvas || typeof THREE === 'undefined') return;
+
+  const isMobile = window.innerWidth < 768;
 
   const vertexShader = `
     attribute vec3 position;
@@ -14,7 +16,7 @@ function initWebGLShader(canvasId = 'webgl-canvas') {
   `;
 
   const fragmentShader = `
-    precision highp float;
+    precision ${isMobile ? 'mediump' : 'highp'} float;
     uniform vec2 resolution;
     uniform float time;
     uniform float xScale;
@@ -39,9 +41,9 @@ function initWebGLShader(canvasId = 'webgl-canvas') {
   `;
 
   const scene = new THREE.Scene();
-  const renderer = new THREE.WebGLRenderer({ canvas });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setClearColor(new THREE.Color(0x000000));
+  const renderer = new THREE.WebGLRenderer({ canvas, powerPreference: 'low-power' });
+  renderer.setPixelRatio(isMobile ? 0.75 : Math.min(window.devicePixelRatio, 1.5));
+  renderer.setClearColor(new THREE.Color(0x050811));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, -1);
@@ -59,12 +61,12 @@ function initWebGLShader(canvasId = 'webgl-canvas') {
      1.0, -1.0, 0.0,
     -1.0,  1.0, 0.0,
      1.0, -1.0, 0.0,
-    -1.0,  1.0, 0.0,
      1.0,  1.0, 0.0,
+    -1.0,  1.0, 0.0,
   ];
 
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(position), 3));
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
 
   const material = new THREE.RawShaderMaterial({
     vertexShader,
@@ -76,23 +78,27 @@ function initWebGLShader(canvasId = 'webgl-canvas') {
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
-  function animate() {
-    uniforms.time.value += 0.01;
-    renderer.render(scene, camera);
+  let lastTime = 0;
+  const fpsInterval = isMobile ? 1000 / 25 : 1000 / 60; // 25 FPS on mobile to save data & battery
+
+  function animate(now) {
     requestAnimationFrame(animate);
+    const elapsed = now - lastTime;
+    if (elapsed > fpsInterval) {
+      lastTime = now - (elapsed % fpsInterval);
+      uniforms.time.value += 0.01;
+      renderer.render(scene, camera);
+    }
   }
 
-  function handleResize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    renderer.setSize(width, height, false);
-    uniforms.resolution.value = [width, height];
-  }
+  animate(performance.now());
 
-  window.addEventListener('resize', handleResize);
-  animate();
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    uniforms.resolution.value = [window.innerWidth, window.innerHeight];
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initWebGLShader('webgl-canvas');
+  initWebGLShader();
 });
