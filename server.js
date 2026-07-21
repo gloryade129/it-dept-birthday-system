@@ -16,6 +16,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Health Check Endpoints for Cloud Load Balancers & Pxxl Router
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
+});
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
+});
+
 // Setup file uploads for student photos
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -58,31 +67,53 @@ app.post('/api/students', upload.single('photo'), async (req, res) => {
     const { fullName, nickname, birthMonth, birthDay, birthYear, phone, email, customNote } = req.body;
 
     if (!fullName || !birthMonth || !birthDay || !phone || !email) {
-      return res.status(400).json({ error: 'Please provide all required fields (Full Name, Birth Month, Birth Day, Phone, and Email).' });
+      return res.status(400).json({ error: 'Full name, birth month, birth day, phone, and email are required.' });
     }
 
     const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     const result = await db.asyncRun(
-      `INSERT INTO students (fullName, nickname, birthMonth, birthDay, birthYear, phone, email, photoUrl, customNote)
+      `INSERT INTO students (fullName, nickname, birthMonth, birthDay, birthYear, phone, email, photoUrl, customNote) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [fullName, nickname || null, parseInt(birthMonth, 10), parseInt(birthDay, 10), birthYear ? parseInt(birthYear, 10) : null, phone, email, photoUrl, customNote || null]
+      [fullName, nickname || null, parseInt(birthMonth), parseInt(birthDay), birthYear ? parseInt(birthYear) : null, phone, email, photoUrl, customNote || null]
     );
 
-    const newStudent = await db.asyncGet('SELECT * FROM students WHERE id = ?', [result.lastID]);
+    const studentId = result.lastID;
 
-    // Send Instant Welcome WhatsApp DM and Brevo Email Confirmation asynchronously
-    sendInstantRegistrationConfirmations(newStudent).catch(err => {
-      console.error('Instant registration confirmation background task error:', err);
-    });
+    // Send instant welcome confirmation (WhatsApp DM + Email)
+    sendInstantRegistrationConfirmations(studentId, {
+      fullName,
+      nickname: nickname || fullName.split(' ')[0],
+      birthMonth,
+      birthDay,
+      phone,
+      email
+    }).catch(err => console.error('Registration instant confirmation error:', err));
 
     res.status(201).json({
-      message: 'Student birthday details registered successfully!',
-      student: newStudent
+      message: 'Student birthday registered successfully!',
+      studentId,
+      fullName
     });
   } catch (err) {
-    console.error('Error registering student:', err);
-    res.status(500).json({ error: 'Failed to register student details.' });
+    console.error('Registration Error:', err);
+    res.status(500).json({ error: 'Failed to register student birthday.' });
+  }
+});
+
+/**
+ * Get Public List of Registered Celebrants
+ */
+app.get('/api/students', async (req, res) => {
+  try {
+    const students = await db.asyncAll(`
+      SELECT id, fullName, nickname, birthMonth, birthDay, birthYear, phone, email, photoUrl, customNote, createdAt 
+      FROM students 
+      ORDER BY birthMonth ASC, birthDay ASC
+    `);
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch registered students.' });
   }
 });
 
@@ -91,14 +122,27 @@ app.post('/api/students', upload.single('photo'), async (req, res) => {
 // -------------------------------------------------------------
 
 /**
- * Get WhatsApp Connection & QR Code Status
+ * Delete Student Record
+ */
+app.delete('/api/students/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.asyncRun('DELETE FROM students WHERE id = ?', [id]);
+    res.json({ message: 'Student record deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete student.' });
+  }
+});
+
+/**
+ * WhatsApp Connection Status
  */
 app.get('/api/whatsapp/status', (req, res) => {
   res.json(getStatus());
 });
 
 /**
- * Get Joined WhatsApp Groups
+ * Get joined WhatsApp Groups
  */
 app.get('/api/whatsapp/groups', async (req, res) => {
   try {
@@ -110,62 +154,7 @@ app.get('/api/whatsapp/groups', async (req, res) => {
 });
 
 /**
- * Get All Registered Students
- */
-app.get('/api/students', async (req, res) => {
-  try {
-    const students = await db.asyncAll('SELECT * FROM students ORDER BY birthMonth ASC, birthDay ASC');
-    res.json(students);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch students.' });
-  }
-});
-
-/**
- * Update Student Details
- */
-app.put('/api/students/:id', upload.single('photo'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { fullName, nickname, birthMonth, birthDay, birthYear, phone, email, customNote } = req.body;
-
-    let photoUrlUpdate = '';
-    const params = [fullName, nickname, parseInt(birthMonth, 10), parseInt(birthDay, 10), birthYear ? parseInt(birthYear, 10) : null, phone, email, customNote];
-
-    if (req.file) {
-      photoUrlUpdate = ', photoUrl = ?';
-      params.push(`/uploads/${req.file.filename}`);
-    }
-
-    params.push(id);
-
-    await db.asyncRun(
-      `UPDATE students SET fullName = ?, nickname = ?, birthMonth = ?, birthDay = ?, birthYear = ?, phone = ?, email = ?, customNote = ? ${photoUrlUpdate} WHERE id = ?`,
-      params
-    );
-
-    const updated = await db.asyncGet('SELECT * FROM students WHERE id = ?', [id]);
-    res.json({ message: 'Student updated successfully', student: updated });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update student.' });
-  }
-});
-
-/**
- * Delete Student
- */
-app.delete('/api/students/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await db.asyncRun('DELETE FROM students WHERE id = ?', [id]);
-    res.json({ message: 'Student deleted successfully.' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete student.' });
-  }
-});
-
-/**
- * Get System Settings
+ * Get Admin Settings
  */
 app.get('/api/settings', async (req, res) => {
   try {
@@ -177,15 +166,15 @@ app.get('/api/settings', async (req, res) => {
 });
 
 /**
- * Update System Settings
+ * Save Admin Settings
  */
 app.post('/api/settings', async (req, res) => {
   try {
-    const settingsObj = req.body;
-    for (const [key, val] of Object.entries(settingsObj)) {
-      await setSetting(key, val);
+    const settings = req.body;
+    for (const [key, value] of Object.entries(settings)) {
+      await setSetting(key, value);
     }
-    res.json({ message: 'Settings saved successfully!' });
+    res.json({ message: 'Settings saved successfully.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save settings.' });
   }
@@ -229,11 +218,10 @@ async function startServer() {
   initSchedulers();
   connectToWhatsApp().catch(err => console.error('WhatsApp init error:', err));
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`=============================================================`);
     console.log(`🚀 IT Dept 25/26 Birthday Automation System Server Running!`);
-    console.log(`🌐 Student Form:  http://localhost:${PORT}/index.html`);
-    console.log(`🔑 Admin Portal: http://localhost:${PORT}/admin.html`);
+    console.log(`🌐 Host: 0.0.0.0 | Port: ${PORT}`);
     console.log(`=============================================================`);
   });
 }
