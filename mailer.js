@@ -61,7 +61,18 @@ async function sendEmail({ to, subject, html, text }) {
   return info;
 }
 
+/**
+ * Send Admin Alert Email (e.g. WhatsApp logout notification)
+ */
+async function sendAdminAlertEmail(subject, message) {
+  const adminEmail = process.env.BREVO_SENDER_EMAIL || process.env.ADMIN_EMAIL;
+  if (!adminEmail) return;
+  const html = `<div style="font-family: sans-serif; padding: 20px;"><h2>${subject}</h2><p>${message}</p></div>`;
+  return sendEmail({ to: adminEmail, subject, html });
+}
+
 module.exports = {
   sendEmail,
+  sendAdminAlertEmail,
   renderTemplate
 };
