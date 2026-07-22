@@ -8,6 +8,9 @@ require('dotenv').config();
 const { db, initDatabase, getSetting, setSetting, getAllSettings } = require('./database');
 const { connectToWhatsApp, getStatus, getJoinedGroups } = require('./whatsapp');
 const { initSchedulers, sendInstantRegistrationConfirmations, triggerManualDispatch } = require('./scheduler');
+const { sendEmail, renderTemplate } = require('./mailer');
+const { generateBirthdayFlyer } = require('./flyerGenerator');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
