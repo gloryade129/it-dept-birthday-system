@@ -107,7 +107,7 @@ app.post('/api/students', upload.single('photo'), async (req, res) => {
     });
   } catch (err) {
     console.error('Registration Error:', err);
-    res.status(500).json({ error: 'Failed to register student birthday.' });
+    res.status(500).json({ error: err.message || 'Failed to register student birthday.' });
   }
 });
 
