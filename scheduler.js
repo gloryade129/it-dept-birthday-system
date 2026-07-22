@@ -224,12 +224,7 @@ async function runMorningGroupDispatches() {
   }
 
   const settings = await getAllSettings();
-  const groupJid = settings.targetGroupJid;
-
-  if (!groupJid) {
-    console.warn('⚠️ Target WhatsApp Announcement Group JID is not set in settings. Skipping group announcement.');
-    return;
-  }
+  const adminPhone = settings.adminPhone || '09168047236';
 
   for (const rawS of rawCelebrants) {
     const student = normalizeStudent(rawS);
@@ -267,12 +262,24 @@ async function runMorningGroupDispatches() {
           photoPath: userPhotoPath
         });
 
-        await sendGroupMessage(groupJid, text, flyerPath);
+        // 1. Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
+        await sendDirectMessage(adminPhone, text, flyerPath);
+        console.log(`✅ Morning Graphic Flyer & Group Announcement delivered to Class Rep WhatsApp DM (${adminPhone}) ready to forward!`);
+
+        // 2. Also attempt direct group dispatch if group JID configured
+        const groupJid = settings.targetGroupJid;
+        if (groupJid) {
+          try {
+            await sendGroupMessage(groupJid, text, flyerPath);
+          } catch (gErr) {
+            console.warn(`⚠️ Group direct dispatch notice (${gErr.message}). Announcement delivered to Class Rep DM!`);
+          }
+        }
+
         await db.asyncRun(
           'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
           [student.id, year, 'group', 'success']
         );
-        console.log(`✅ 9:00 AM Group Announcement & Dynamic Flyer posted automatically for ${student.fullName} to group ${groupJid}`);
       } catch (err) {
         console.error(`❌ Group Announcement failed for ${student.fullName}:`, err.message);
         await db.asyncRun(
@@ -357,8 +364,7 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
     try {
       const rawGroupTpl = settings.birthdayGroupTemplate || '🎂 IT DEPT 25/26 BIRTHDAY ANNOUNCEMENT 🎂\n\nToday we celebrate *{fullName}* ({nickname})! 🎉🎈';
       const text = renderTemplate(rawGroupTpl, templateData);
-      const groupJid = settings.targetGroupJid;
-      if (!groupJid) throw new Error('WhatsApp Announcement group not configured.');
+      const adminPhone = settings.adminPhone || '09168047236';
 
       const flyerPath = await generateBirthdayFlyer({
         fullName: student.fullName,
@@ -367,7 +373,20 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
         photoPath: userPhotoPath
       });
 
-      await sendGroupMessage(groupJid, text, flyerPath);
+      // 1. Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
+      await sendDirectMessage(adminPhone, text, flyerPath);
+      console.log(`✅ Graphic Flyer & Group Announcement delivered to Class Rep WhatsApp DM (${adminPhone}) ready to forward!`);
+
+      // 2. Also attempt direct group dispatch if group JID configured
+      const groupJid = settings.targetGroupJid;
+      if (groupJid) {
+        try {
+          await sendGroupMessage(groupJid, text, flyerPath);
+        } catch (gErr) {
+          console.warn(`⚠️ Group direct dispatch notice (${gErr.message}). Announcement delivered to Class Rep DM!`);
+        }
+      }
+
       await db.asyncRun(
         'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
         [student.id, year, 'group', 'success']

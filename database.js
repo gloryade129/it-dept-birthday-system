@@ -199,6 +199,7 @@ async function initDatabase() {
 
     // Initialize default settings if not exists
     const defaults = {
+      adminPhone: '09168047236',
       targetGroupJid: '',
       targetGroupName: '',
       midnightTime: '00:00',

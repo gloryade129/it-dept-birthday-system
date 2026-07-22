@@ -146,6 +146,23 @@
             </div>
             <p id="currentGroupSaved" style="font-size: 0.8rem; color: var(--accent-primary); margin-top: 0.65rem; font-weight: 500;"></p>
           </div>
+
+          <!-- Class Rep WhatsApp Forwarding Destination -->
+          <div style="margin-top: 1.75rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <h3 style="font-size: 1.05rem; font-weight: 600; color: #ffffff; margin-bottom: 0.4rem;">Class Rep WhatsApp Announcement Destination</h3>
+            <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1rem;">
+              The 1080x1080 Graphic Flyer + Group Announcement caption will be sent directly to your WhatsApp DM for 1-tap forwarding to the department group:
+            </p>
+            
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <div style="flex: 1; min-width: 240px;">
+                <input type="text" id="adminPhoneInput" class="form-control" value="09168047236" placeholder="09168047236">
+              </div>
+              <button class="btn-liquid btn-liquid-primary" style="border-radius: var(--radius-md); font-size: 0.82rem; padding: 0.6rem 1.2rem;" onclick="saveAdminPhone()">
+                Save Forwarding Phone
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -433,7 +450,18 @@
         body: JSON.stringify({ targetGroupJid: jid, targetGroupName: selectedOpt })
       });
       showToast('Target Announcement Group saved cleanly!', 'success');
-      document.getElementById('currentGroupSaved').textContent = `Active Group JID: ${jid}`;
+      document.getElementById('currentGroupSaved').textContent = 'Active Group JID: ' + jid;
+    }
+
+    async function saveAdminPhone() {
+      const phone = (document.getElementById('adminPhoneInput').value || '').trim();
+      if (!phone) return showToast('Please enter a valid phone number.', 'error');
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPhone: phone })
+      });
+      showToast('Class Rep Forwarding Phone saved! Graphic Flyer & Group Announcements will be sent to ' + phone, 'success');
     }
 
     async function loadStudents() {
@@ -561,6 +589,17 @@
             el.value = settings[key] || DEFAULT_TEMPLATES[key];
           }
         });
+
+        // Populate Class Rep phone field
+        const adminPhoneEl = document.getElementById('adminPhoneInput');
+        if (adminPhoneEl && settings.adminPhone) {
+          adminPhoneEl.value = settings.adminPhone;
+        }
+
+        // Show saved group JID
+        if (settings.targetGroupJid) {
+          document.getElementById('currentGroupSaved').textContent = 'Active Group JID: ' + settings.targetGroupJid;
+        }
       } catch (err) {
         console.error(err);
       }

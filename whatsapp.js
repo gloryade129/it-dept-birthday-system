@@ -205,13 +205,45 @@ async function getJoinedGroups() {
   return groupsList;
 }
 
-async function sendDirectMessage(phoneStr, textMessage) {
+async function sendDirectMessage(phoneStr, textMessage, imagePathOrBuffer) {
   if (!sock || !isConnected) {
     throw new Error('WhatsApp client is not connected. Please scan QR Code in Admin Portal.');
   }
+
   const jid = formatPhoneToJid(phoneStr);
-  console.log(`📤 Sending direct WhatsApp message to ${jid}...`);
+  let imageBuffer = null;
+
+  if (imagePathOrBuffer) {
+    if (typeof imagePathOrBuffer === 'string') {
+      try {
+        if (fs.existsSync(imagePathOrBuffer)) {
+          imageBuffer = fs.readFileSync(imagePathOrBuffer);
+        }
+      } catch (err) {
+        console.warn('Could not read image file for WhatsApp DM:', err.message);
+      }
+    } else if (Buffer.isBuffer(imagePathOrBuffer)) {
+      imageBuffer = imagePathOrBuffer;
+    }
+  }
+
+  if (imageBuffer) {
+    try {
+      console.log(`📤 Sending direct WhatsApp message with graphic flyer image attachment to ${jid}...`);
+      const res = await sock.sendMessage(jid, {
+        image: imageBuffer,
+        caption: textMessage
+      });
+      console.log(`✅ Direct WhatsApp message with graphic flyer sent cleanly to ${jid}`);
+      return res;
+    } catch (imgErr) {
+      console.warn(`⚠️ Direct message image attachment dispatch failed (${imgErr.message}). Falling back to text-only DM...`);
+    }
+  }
+
+  console.log(`📤 Sending text-only direct WhatsApp message to ${jid}...`);
   const result = await sock.sendMessage(jid, { text: textMessage });
+  console.log(`✅ Direct WhatsApp message sent cleanly to ${jid}`);
   return result;
 }
 
