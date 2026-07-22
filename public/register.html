@@ -10,6 +10,39 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="shader.js" defer></script>
   <script src="motion.js" defer></script>
+  <style>
+    /* Responsive Form Layout Balance */
+    .form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+    .form-group {
+      width: 100%;
+      margin-bottom: 0;
+    }
+    .form-label {
+      font-size: 0.86rem !important;
+      font-weight: 600 !important;
+      color: var(--text-main) !important;
+      margin-bottom: 0.4rem !important;
+      display: block !important;
+    }
+    .form-control {
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    @media (min-width: 640px) {
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.1rem;
+      }
+      .form-group.full-width {
+        grid-column: span 2;
+      }
+    }
+  </style>
 </head>
 <body>
   <!-- WebGL Dynamic Shader Background -->
@@ -72,7 +105,7 @@
 
           <form id="birthdayForm" enctype="multipart/form-data">
             <div class="form-grid">
-              <div class="form-group" style="grid-column: span 2;">
+              <div class="form-group full-width">
                 <label class="form-label" for="fullName">Full Name <span style="color: var(--danger);">*</span></label>
                 <input type="text" id="fullName" name="fullName" class="form-control" placeholder="e.g. Samuel Adewale" required>
               </div>
@@ -104,7 +137,7 @@
                 <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Receives your midnight WhatsApp birthday message.</div>
               </div>
 
-              <div class="form-group" style="grid-column: span 2;">
+              <div class="form-group full-width">
                 <label class="form-label" for="email">Email Address <span style="color: var(--danger);">*</span></label>
                 <input type="email" id="email" name="email" class="form-control" placeholder="e.g. student@gmail.com" required>
                 <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Receives your Birthday Card & welcome email.</div>
