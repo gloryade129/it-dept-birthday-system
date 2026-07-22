@@ -109,7 +109,13 @@ async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
   authState = state;
 
-  const { version } = await fetchLatestBaileysVersion();
+  let version = [2, 3000, 1015901307];
+  try {
+    const res = await fetchLatestBaileysVersion();
+    if (res && res.version) version = res.version;
+  } catch (vErr) {
+    console.warn('⚠️ Could not fetch latest Baileys version, using default:', vErr.message);
+  }
 
   sock = makeWASocket({
     version,
