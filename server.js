@@ -7,9 +7,8 @@ require('dotenv').config();
 
 const { db, initDatabase, getSetting, setSetting, getAllSettings } = require('./database');
 const { connectToWhatsApp, getStatus, getJoinedGroups } = require('./whatsapp');
-const { initSchedulers, sendInstantRegistrationConfirmations, triggerManualDispatch } = require('./scheduler');
+const { initSchedulers, sendInstantRegistrationConfirmations, resendMissedWelcomeDms, triggerManualDispatch } = require('./scheduler');
 const { sendEmail, renderTemplate } = require('./mailer');
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -183,6 +182,18 @@ app.post('/api/whatsapp/reset', async (req, res) => {
   try {
     resetWhatsAppSession().catch(err => console.error('WhatsApp reset error:', err));
     res.json({ message: 'WhatsApp session purged. Fresh QR Code generating...' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Re-send Missed WhatsApp Welcome DMs to registered students
+ */
+app.post('/api/students/resend-welcome-dms', async (req, res) => {
+  try {
+    const result = await resendMissedWelcomeDms();
+    res.json({ message: 'Missed WhatsApp Welcome DMs processed.', result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

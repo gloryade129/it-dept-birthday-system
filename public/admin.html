@@ -270,7 +270,10 @@
               <h2 style="color: #ffffff; font-size: 1.25rem; font-weight: 700;">Dispatch Audit Logs</h2>
               <p style="color: var(--text-muted); font-size: 0.8rem;">Real-time history of all automated WhatsApp & Email wishes sent.</p>
             </div>
-            <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="loadLogs()">Refresh Logs</button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; background: rgba(56, 189, 248, 0.2); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="triggerResendMissedDms()">Re-send Missed WhatsApp DMs</button>
+              <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="loadLogs()">Refresh Logs</button>
+            </div>
           </div>
 
           <div class="table-responsive">
@@ -424,6 +427,22 @@
         setTimeout(checkWhatsAppStatus, 1500);
       } catch (err) {
         console.error('Reset error:', err);
+      }
+    }
+
+    async function triggerResendMissedDms() {
+      showToast('Re-sending missed WhatsApp Welcome DMs...', 'info');
+      try {
+        const res = await fetch('/api/students/resend-welcome-dms', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`✅ Processed! Sent: ${data.result?.sentCount || 0}, Failed: ${data.result?.failCount || 0}`, 'success');
+          loadLogs();
+        } else {
+          showToast(`❌ Error: ${data.error}`, 'danger');
+        }
+      } catch (err) {
+        showToast(`❌ Request failed: ${err.message}`, 'danger');
       }
     }
 

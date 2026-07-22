@@ -444,10 +444,62 @@ function initSchedulers() {
   console.log('   - 09:15 AM: Fail-safe Automatic Retry for Group Dispatches');
 }
 
+/**
+ * Re-send Missed WhatsApp Welcome DMs to registered students
+ */
+async function resendMissedWelcomeDms() {
+  console.log('🔄 Checking database for students missing WhatsApp Welcome DMs...');
+  const students = await db.asyncAll('SELECT * FROM students ORDER BY id ASC');
+  const settings = await getAllSettings();
+  
+  let sentCount = 0;
+  let failCount = 0;
+  const currentYear = new Date().getFullYear();
+
+  for (const rawStudent of students) {
+    const student = normalizeStudent(rawStudent);
+    const id = student.id;
+
+    // Check if welcome_dm was already successfully sent
+    const successfulDmLog = await db.asyncGet(
+      'SELECT * FROM dispatch_logs WHERE studentid = ? AND year = ? AND channel = ? AND status = ?',
+      [id, currentYear, 'welcome_dm', 'success']
+    );
+
+    if (!successfulDmLog && student.phone) {
+      console.log(`📤 Re-sending WhatsApp Welcome DM to ${student.fullName} (${student.phone})...`);
+      const templateData = buildTemplateData(student);
+      const defaultWelcomeDm = 'Hi {nickname}, welcome to the IT Dept 25/26 Birthday Network! 👋\n\nHere is a copy of your registered details:\n👤 Name: {fullName} ({nickname})\n🎂 Date of Birth: {birthDate}\n📱 WhatsApp: {phone}\n✉️ Email: {email}\n\nOn your special day, expect automated birthday wishes, an official group announcement with your photo, and a celebration email card! 🎁✨';
+      const rawTemplate = settings.welcomeDmTemplate || defaultWelcomeDm;
+      const welcomeText = renderTemplate(rawTemplate, templateData);
+
+      try {
+        await sendDirectMessage(student.phone, welcomeText);
+        await db.asyncRun(
+          'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
+          [id, currentYear, 'welcome_dm', 'success', null]
+        );
+        console.log(`✅ Welcome DM successfully re-sent to ${student.fullName}`);
+        sentCount++;
+      } catch (err) {
+        console.error(`❌ Re-send Welcome DM failed for ${student.fullName}:`, err.message);
+        await db.asyncRun(
+          'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
+          [id, currentYear, 'welcome_dm', 'failed', err.message]
+        );
+        failCount++;
+      }
+    }
+  }
+
+  return { totalStudents: students.length, sentCount, failCount };
+}
+
 module.exports = {
   initSchedulers,
   sendInstantRegistrationConfirmations,
   runMidnightBirthdayDispatches,
   runMorningGroupDispatches,
+  resendMissedWelcomeDms,
   triggerManualDispatch
 };
