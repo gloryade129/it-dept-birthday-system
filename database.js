@@ -242,16 +242,18 @@ async function initDatabase() {
       `
     };
 
-    for (const [key, value] of Object.entries(defaults)) {
-      const existing = await db.asyncGet('SELECT key FROM settings WHERE key = ?', [key]);
-      if (!existing) {
+    const insertPromises = Object.entries(defaults).map(async ([key, value]) => {
+      try {
         if (usePostgres) {
           await db.asyncRun('INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING', [key, value]);
         } else if (sqliteDb) {
-          await db.asyncRun('INSERT INTO settings (key, value) VALUES (?, ?)', [key, value]);
+          await db.asyncRun('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [key, value]);
         }
+      } catch (e) {
+        // Ignore single key collision
       }
-    }
+    });
+    await Promise.all(insertPromises);
 
     console.log(`✅ ${usePostgres ? 'PostgreSQL' : 'SQLite'} Database initialized successfully.`);
   } catch (err) {

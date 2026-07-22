@@ -14,14 +14,14 @@ const { sendEmail, renderTemplate } = require('./mailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Pxxl/nginx reverse proxy (required for correct IP & protocol forwarding)
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static frontend files (serves index.html on / automatically)
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Health Check Endpoints for Cloud Load Balancers & Pxxl Router
+// Health Check Endpoints — must come BEFORE static middleware so Pxxl proxy rollover probe gets instant JSON 200
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
 });
@@ -29,6 +29,11 @@ app.get('/health', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
 });
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, 'public')));
+
+
 
 // Setup file uploads for student photos
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
@@ -289,7 +294,7 @@ app.post('/api/manual-trigger', async (req, res) => {
 });
 
 // Start Express HTTP Server FIRST so Pxxl Proxy Health Checks Pass Instantly
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`=============================================================`);
   console.log(`🚀 IT Dept 25/26 Birthday Automation System Server Running!`);
   console.log(`🌐 Host: 0.0.0.0 | Port: ${PORT}`);
@@ -302,5 +307,20 @@ app.listen(PORT, '0.0.0.0', () => {
   }).catch(err => {
     console.error('Database init warning:', err.message);
   });
+});
+
+// Graceful shutdown for Pxxl container rollover (SIGTERM signal)
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received — shutting down gracefully for Pxxl rollover...');
+  server.close(() => {
+    console.log('✅ HTTP server closed cleanly.');
+    process.exit(0);
+  });
+  // Force exit after 10s if connections don't drain
+  setTimeout(() => process.exit(0), 10000);
+});
+
+process.on('SIGINT', () => {
+  server.close(() => process.exit(0));
 });
 
