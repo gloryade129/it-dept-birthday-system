@@ -422,13 +422,14 @@
         const data = await response.json();
 
         if (response.ok) {
-          document.getElementById('modalMessage').textContent = `Thank you, ${data.student.fullName}. Your birthday details are recorded for Information Technology Department 25/26 Set.`;
+          const name = data.fullName || data.student?.fullName || 'Celebrant';
+          document.getElementById('modalMessage').textContent = `Thank you, ${name}! Your birthday details have been recorded for the Information Technology Department 25/26 Set. Expect a welcome message on WhatsApp shortly!`;
           document.getElementById('successModal').classList.add('active');
           form.reset();
           document.getElementById('uploadPlaceholder').style.display = 'block';
           document.getElementById('photoPreviewContainer').style.display = 'none';
         } else {
-          alert('Error: ' + (data.error || 'Failed to submit details.'));
+          alert('Error: ' + (data.error || 'Failed to submit details. Please try again.'));
         }
       } catch (err) {
         console.error(err);

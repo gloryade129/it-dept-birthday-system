@@ -17,6 +17,8 @@ let currentQr = null;
 let isConnected = false;
 let connectedUser = null;
 let authState = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 const authFolder = path.join(__dirname, 'auth_info_baileys');
 if (!fs.existsSync(authFolder)) {
@@ -115,6 +117,7 @@ async function connectToWhatsApp() {
       currentQr = null;
       isConnected = true;
       connectedUser = sock.user;
+      reconnectAttempts = 0;
       console.log('✅ WhatsApp Web Client connected successfully:', sock.user?.id || sock.user?.name);
       await backupAuthToDatabase();
     }
@@ -141,7 +144,18 @@ async function connectToWhatsApp() {
       }
 
       if (shouldReconnect) {
-        setTimeout(connectToWhatsApp, 5000);
+        // Status 440 = logged in from another device — wait longer before retry
+        const delay = statusCode === 440
+          ? 15000
+          : Math.min(5000 * Math.pow(2, reconnectAttempts), 60000);
+        reconnectAttempts++;
+        if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+          console.log(`🔄 Reconnecting in ${delay / 1000}s... (Attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+          setTimeout(connectToWhatsApp, delay);
+        } else {
+          console.warn('⚠️ Max reconnect attempts reached. Please scan QR Code again in Admin Portal.');
+          reconnectAttempts = 0;
+        }
       }
     }
   });
