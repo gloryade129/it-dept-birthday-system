@@ -249,14 +249,15 @@ async function runMorningGroupDispatches() {
         const rawGroupTpl = settings.birthdayGroupTemplate || '🎂 IT DEPT 25/26 BIRTHDAY ANNOUNCEMENT 🎂\n\nToday we celebrate *{fullName}* ({nickname})! 🎉🎈';
         const text = renderTemplate(rawGroupTpl, templateData);
         
+        const photoUrl = student.photoUrl || student.photourl;
         let userPhotoPath = null;
-        if (student.photoUrl) {
-          userPhotoPath = path.join(__dirname, 'public', student.photoUrl);
+        if (photoUrl) {
+          userPhotoPath = photoUrl;
         }
 
         // Generate dynamic branded birthday graphic flyer PNG image
         const flyerPath = await generateBirthdayFlyer({
-          fullName: student.fullName,
+          fullName: student.fullName || student.fullname,
           nickname: student.nickname,
           birthDate: birthDateStr,
           photoPath: userPhotoPath
@@ -356,8 +357,14 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
       const text = renderTemplate(rawGroupTpl, templateData);
       const adminPhone = settings.adminPhone || '09168047236';
 
+      const photoUrl = student.photoUrl || student.photourl;
+      let userPhotoPath = null;
+      if (photoUrl) {
+        userPhotoPath = photoUrl;
+      }
+
       const flyerPath = await generateBirthdayFlyer({
-        fullName: student.fullName,
+        fullName: student.fullName || student.fullname,
         nickname: student.nickname,
         birthDate: birthDateStr,
         photoPath: userPhotoPath
