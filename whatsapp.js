@@ -211,6 +211,16 @@ async function sendDirectMessage(phoneStr, textMessage, imagePathOrBuffer) {
   }
 
   const jid = formatPhoneToJid(phoneStr);
+
+  // Check if trying to send to the logged-in account itself
+  const connectedId = (sock.user?.id || '').split('@')[0].split(':')[0];
+  const targetId = jid.split('@')[0];
+
+  if (connectedId && targetId && connectedId === targetId) {
+    console.log(`ℹ️ Recipient ${phoneStr} is the logged-in WhatsApp account itself. Skipping self-DM to prevent WhatsApp multi-device encryption placeholders.`);
+    return { status: 'skipped_self' };
+  }
+
   let imageBuffer = null;
 
   if (imagePathOrBuffer) {

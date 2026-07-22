@@ -217,6 +217,63 @@ app.get('/api/logs', async (req, res) => {
 });
 
 /**
+ * Generate and return Flyer PNG & Group Caption for Admin Portal 1-click Download
+ */
+app.get('/api/flyer/:studentId', async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const rawStudent = await db.asyncGet('SELECT * FROM students WHERE id = ?', [studentId]);
+    if (!rawStudent) return res.status(404).json({ error: 'Student not found.' });
+
+    const fullName = rawStudent.fullName || rawStudent.fullname || '';
+    const nickname = rawStudent.nickname || (fullName ? fullName.split(' ')[0] : 'Friend');
+    const birthMonth = rawStudent.birthMonth || rawStudent.birthmonth;
+    const birthDay = rawStudent.birthDay || rawStudent.birthday;
+    const photoUrl = rawStudent.photoUrl || rawStudent.photourl;
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const birthDateStr = `${monthNames[parseInt(birthMonth, 10) - 1]} ${birthDay}`;
+
+    let userPhotoPath = null;
+    if (photoUrl) {
+      userPhotoPath = path.join(__dirname, 'public', photoUrl);
+    }
+
+    const flyerPath = await generateBirthdayFlyer({
+      fullName,
+      nickname,
+      birthDate: birthDateStr,
+      photoPath: userPhotoPath
+    });
+
+    const flyerUrl = flyerPath ? `/flyers/${path.basename(flyerPath)}` : null;
+
+    const settings = await getAllSettings();
+    const templateData = {
+      fullName,
+      nickname,
+      birthDate: birthDateStr,
+      phone: rawStudent.phone || '',
+      email: rawStudent.email || '',
+      department: 'Information Technology 25/26'
+    };
+
+    const rawGroupTpl = settings.birthdayGroupTemplate || '🎂 IT DEPT 25/26 BIRTHDAY ANNOUNCEMENT 🎂\n\nToday we celebrate *{fullName}* ({nickname})! 🎉🎈';
+    const caption = renderTemplate(rawGroupTpl, templateData);
+
+    res.json({
+      flyerUrl,
+      caption,
+      fullName,
+      nickname
+    });
+  } catch (err) {
+    console.error('Flyer API Error:', err);
+    res.status(500).json({ error: 'Failed to generate flyer.' });
+  }
+});
+
+/**
  * Manual Trigger Birthday Wishes
  */
 app.post('/api/manual-trigger', async (req, res) => {
