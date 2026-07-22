@@ -44,11 +44,13 @@ const db = {
       return new Promise(async (resolve, reject) => {
         try {
           let pgSql = formatSqlForPg(sql);
+          // Only append RETURNING * if it's an INSERT query and doesn't already specify RETURNING
           if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
-            pgSql += ' RETURNING id';
+            pgSql += ' RETURNING *';
           }
           const res = await pgPool.query(pgSql, params);
-          const lastID = res.rows && res.rows[0] ? res.rows[0].id : null;
+          const firstRow = res.rows && res.rows[0] ? res.rows[0] : {};
+          const lastID = firstRow.id || firstRow.key || null;
           resolve({ lastID, rowCount: res.rowCount });
         } catch (err) {
           reject(err);
