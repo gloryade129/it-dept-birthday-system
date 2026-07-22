@@ -82,72 +82,12 @@
                 <input type="text" id="nickname" name="nickname" class="form-control" placeholder="e.g. Sammy / CodeWizard">
               </div>
 
-              <!-- HeroUI Date Picker Component Integration -->
-              <div class="form-group" style="position: relative;">
-                <label class="form-label">Birth Date <span style="color: var(--danger);">*</span></label>
+              <!-- Global Standard Native Date Picker Component -->
+              <div class="form-group">
+                <label class="form-label" for="dobPicker">Date of Birth <span style="color: var(--danger);">*</span></label>
+                <input type="date" id="dobPicker" class="form-control" style="background: rgba(15, 23, 42, 0.9); color: #f1f5f9; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.75rem 1rem; width: 100%; font-family: inherit; font-size: 0.9rem;" required>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Tap to select your birth date from the standard calendar.</div>
                 
-                <div class="date-range-picker" id="datePickerComponent">
-                  <div class="date-input-group" id="dateInputGroup">
-                    <div class="date-input-group__input">
-                      <span class="date-range-picker__input">
-                        <span class="date-input-group__segment" id="segMonth" tabindex="0" role="spinbutton" aria-label="month, ">06</span>
-                        <span class="date-input-group__literal">/</span>
-                        <span class="date-input-group__segment" id="segDay" tabindex="0" role="spinbutton" aria-label="day, ">15</span>
-                        <span class="date-input-group__literal">/</span>
-                        <span class="date-input-group__segment" id="segYear" tabindex="0" role="spinbutton" aria-label="year, ">2004</span>
-                      </span>
-                    </div>
-                    
-                    <div class="date-input-group__suffix">
-                      <button type="button" class="date-range-picker__trigger" id="calendarTrigger" aria-label="Calendar">
-                        <span class="date-range-picker__trigger-indicator">
-                          <svg fill="none" height="16" viewBox="0 0 13 14" width="16" xmlns="http://www.w3.org/2000/svg">
-                            <path clip-rule="evenodd" d="M3.75 4.5A.75.75 0 0 1 3 3.75v-.748a1.5 1.5 0 0 0-1.5 1.5v1h10v-1a1.5 1.5 0 0 0-1.5-1.5v.75a.75.75 0 1 1-1.5 0v-.75h-4v.747a.75.75 0 0 1-.75.75ZM8.5 1.501h-4V.75a.75.75 0 0 0-1.5 0v.752a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h7a3 3 0 0 0 3-3v-6a3 3 0 0 0-3-3v-.75a.75.75 0 0 0-1.5 0v.75Zm-7 5.5v3.5a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5v-3.5h-10Z" fill="currentColor" fill-rule="evenodd" />
-                          </svg>
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Calendar Popover Dialog -->
-                  <div class="date-range-picker__popover" id="calendarPopover" style="display: none;">
-                    <div class="calendar">
-                      <header class="calendar__header">
-                        <button type="button" class="calendar-year-picker__trigger" id="yearHeaderBtn">
-                          <span id="calendarHeading">June 2004</span>
-                          <span style="font-size: 0.8rem; color: var(--text-muted);">▼</span>
-                        </button>
-                        <div style="display: flex; gap: 2px;">
-                          <button type="button" class="calendar__nav-button" id="prevMonthBtn">‹</button>
-                          <button type="button" class="calendar__nav-button" id="nextMonthBtn">›</button>
-                        </div>
-                      </header>
-
-                      <table class="calendar__grid">
-                        <thead>
-                          <tr>
-                            <th class="calendar__header-cell">Sun</th>
-                            <th class="calendar__header-cell">Mon</th>
-                            <th class="calendar__header-cell">Tue</th>
-                            <th class="calendar__header-cell">Wed</th>
-                            <th class="calendar__header-cell">Thu</th>
-                            <th class="calendar__header-cell">Fri</th>
-                            <th class="calendar__header-cell">Sat</th>
-                          </tr>
-                        </thead>
-                        <tbody id="calendarGridBody">
-                          <!-- Populated via JS -->
-                        </tbody>
-                      </table>
-
-                      <!-- Year Picker Grid overlay -->
-                      <div class="calendar-year-picker__year-grid" id="yearPickerGrid" style="display: none;">
-                        <!-- Populated via JS -->
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 <!-- Hidden inputs for backend submission -->
                 <input type="hidden" id="birthMonth" name="birthMonth" value="6" required>
                 <input type="hidden" id="birthDay" name="birthDay" value="15" required>
@@ -252,139 +192,28 @@
       mobileDrawer.classList.remove('active');
     });
 
-    // --- HeroUI DateRangePicker JavaScript Logic ---
-    let currentMonth = 5; // June (0-indexed)
-    let currentYear = 2004;
-    let selectedDay = 15;
+    // --- Global Standard Native Date Picker Logic ---
+    const dobPicker = document.getElementById('dobPicker');
+    const birthMonthInput = document.getElementById('birthMonth');
+    const birthDayInput = document.getElementById('birthDay');
+    const birthYearInput = document.getElementById('birthYear');
 
-    const monthsList = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    // Set default initial value (2004-06-15)
+    dobPicker.value = "2004-06-15";
+    birthMonthInput.value = "6";
+    birthDayInput.value = "15";
+    birthYearInput.value = "2004";
 
-    const calendarTrigger = document.getElementById('calendarTrigger');
-    const dateInputGroup = document.getElementById('dateInputGroup');
-    const calendarPopover = document.getElementById('calendarPopover');
-    const yearHeaderBtn = document.getElementById('yearHeaderBtn');
-    const yearPickerGrid = document.getElementById('yearPickerGrid');
-    const calendarHeading = document.getElementById('calendarHeading');
-    const calendarGridBody = document.getElementById('calendarGridBody');
-
-    const segMonth = document.getElementById('segMonth');
-    const segDay = document.getElementById('segDay');
-    const segYear = document.getElementById('segYear');
-
-    function toggleCalendar(e) {
-      if (e) e.stopPropagation();
-      const isOpen = calendarPopover.style.display === 'block';
-      calendarPopover.style.display = isOpen ? 'none' : 'block';
-      if (!isOpen) renderCalendarGrid();
-    }
-
-    calendarTrigger.addEventListener('click', toggleCalendar);
-    dateInputGroup.addEventListener('click', (e) => {
-      if (!e.target.closest('#calendarTrigger')) {
-        toggleCalendar(e);
-      }
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!document.getElementById('datePickerComponent').contains(e.target)) {
-        calendarPopover.style.display = 'none';
-      }
-    });
-
-    yearHeaderBtn.addEventListener('click', () => {
-      const yearOpen = yearPickerGrid.style.display === 'grid';
-      yearPickerGrid.style.display = yearOpen ? 'none' : 'grid';
-      if (!yearOpen) renderYearGrid();
-    });
-
-    document.getElementById('prevMonthBtn').addEventListener('click', () => {
-      currentMonth--;
-      if (currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
-      }
-      renderCalendarGrid();
-    });
-
-    document.getElementById('nextMonthBtn').addEventListener('click', () => {
-      currentMonth++;
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-      }
-      renderCalendarGrid();
-    });
-
-    function renderCalendarGrid() {
-      calendarHeading.textContent = `${monthsList[currentMonth]} ${currentYear}`;
-      calendarGridBody.innerHTML = '';
-
-      const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-      let dayCounter = 1;
-      for (let row = 0; row < 6; row++) {
-        if (dayCounter > daysInMonth) break;
-        const tr = document.createElement('tr');
-
-        for (let col = 0; col < 7; col++) {
-          const td = document.createElement('td');
-          if (row === 0 && col < firstDayIndex) {
-            td.innerHTML = '<button type="button" class="calendar__cell" style="opacity: 0.2;" disabled></button>';
-          } else if (dayCounter <= daysInMonth) {
-            const dayNum = dayCounter;
-            const isSelected = (dayNum === selectedDay && (currentMonth + 1) === parseInt(document.getElementById('birthMonth').value) && currentYear === parseInt(document.getElementById('birthYear').value));
-            
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'calendar__cell';
-            if (isSelected) btn.setAttribute('data-selected', 'true');
-            btn.textContent = dayNum;
-
-            btn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              selectedDay = dayNum;
-              updateDateSelection(currentMonth + 1, selectedDay, currentYear);
-              calendarPopover.style.display = 'none';
-            });
-
-            td.appendChild(btn);
-            dayCounter++;
-          }
-          tr.appendChild(td);
+    dobPicker.addEventListener('change', () => {
+      if (dobPicker.value) {
+        const parts = dobPicker.value.split('-'); // ["YYYY", "MM", "DD"]
+        if (parts.length === 3) {
+          birthYearInput.value = parts[0];
+          birthMonthInput.value = parseInt(parts[1], 10);
+          birthDayInput.value = parseInt(parts[2], 10);
         }
-        calendarGridBody.appendChild(tr);
       }
-    }
-
-    function renderYearGrid() {
-      yearPickerGrid.innerHTML = '';
-      for (let y = 1970; y <= 2010; y++) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'calendar-year-picker__year-cell';
-        if (y === currentYear) btn.setAttribute('data-selected', 'true');
-        btn.textContent = y;
-
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          currentYear = y;
-          yearPickerGrid.style.display = 'none';
-          renderCalendarGrid();
-        });
-        yearPickerGrid.appendChild(btn);
-      }
-    }
-
-    function updateDateSelection(m, d, y) {
-      document.getElementById('birthMonth').value = m;
-      document.getElementById('birthDay').value = d;
-      document.getElementById('birthYear').value = y;
-
-      segMonth.textContent = String(m).padStart(2, '0');
-      segDay.textContent = String(d).padStart(2, '0');
-      segYear.textContent = String(y);
-    }
+    });
 
     // Photo selection preview
     function handlePhotoSelect(event) {
