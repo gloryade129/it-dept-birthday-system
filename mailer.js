@@ -1,10 +1,17 @@
 const nodemailer = require('nodemailer');
 const { getSetting } = require('./database');
 
-async function createTransporter() {
+async function createTransporter(overrideUser = null) {
   const host = process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com';
   const port = parseInt(process.env.BREVO_SMTP_PORT || '587', 10);
-  const user = process.env.BREVO_SMTP_USER || await getSetting('brevoSmtpUser');
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || await getSetting('brevoSenderEmail');
+  
+  // Brevo SMTP login username is your Brevo account email address (or BREVO_SMTP_USER)
+  let user = overrideUser || process.env.BREVO_SMTP_USER || await getSetting('brevoSmtpUser');
+  if (!user || user.endsWith('@smtp-brevo.com')) {
+    user = senderEmail || user;
+  }
+
   const pass = process.env.BREVO_SMTP_PASSWORD || await getSetting('brevoApiKey') || await getSetting('brevoSmtpPassword');
 
   if (!user || !pass) {
@@ -56,9 +63,22 @@ async function sendEmail({ to, subject, html, text }) {
     text: text || html.replace(/<[^>]+>/g, '')
   };
 
-  const info = await transporter.sendMail(mailOptions);
-  console.log(`✉️ Email sent to ${to} via Brevo. Message ID: ${info.messageId}`);
-  return info;
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✉️ Email sent to ${to} via Brevo. Message ID: ${info.messageId}`);
+    return info;
+  } catch (err) {
+    if (err.message && err.message.includes('535') && senderEmail) {
+      console.warn(`⚠️ Brevo SMTP Auth failed with BREVO_SMTP_USER. Retrying authentication with BREVO_SENDER_EMAIL (${senderEmail})...`);
+      const fallbackTransporter = await createTransporter(senderEmail);
+      if (fallbackTransporter) {
+        const info = await fallbackTransporter.sendMail(mailOptions);
+        console.log(`✉️ Email sent to ${to} via Brevo (Fallback Auth). Message ID: ${info.messageId}`);
+        return info;
+      }
+    }
+    throw err;
+  }
 }
 
 /**
