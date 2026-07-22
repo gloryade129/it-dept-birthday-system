@@ -9,6 +9,9 @@ const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
 
+const { db, getSetting, setSetting } = require('./database');
+const { sendAdminAlertEmail } = require('./mailer');
+
 let sock = null;
 let currentQr = null;
 let isConnected = false;
@@ -18,6 +21,45 @@ let authState = null;
 const authFolder = path.join(__dirname, 'auth_info_baileys');
 if (!fs.existsSync(authFolder)) {
   fs.mkdirSync(authFolder, { recursive: true });
+}
+
+/**
+ * Restore auth_info_baileys files from Database backup on cloud container startup
+ */
+async function restoreAuthFromDatabase() {
+  try {
+    const backupJson = await getSetting('whatsapp_session_backup');
+    if (backupJson) {
+      const filesMap = JSON.parse(backupJson);
+      for (const [filename, content] of Object.entries(filesMap)) {
+        const filePath = path.join(authFolder, filename);
+        fs.writeFileSync(filePath, content);
+      }
+      console.log('✅ Restored persistent WhatsApp session keys from database backup.');
+    }
+  } catch (err) {
+    console.warn('WhatsApp DB session restore warning:', err.message);
+  }
+}
+
+/**
+ * Backup auth_info_baileys files to Database settings table
+ */
+async function backupAuthToDatabase() {
+  try {
+    if (!fs.existsSync(authFolder)) return;
+    const files = fs.readdirSync(authFolder);
+    const filesMap = {};
+    for (const f of files) {
+      const filePath = path.join(authFolder, f);
+      if (fs.statSync(filePath).isFile()) {
+        filesMap[f] = fs.readFileSync(filePath, 'utf8');
+      }
+    }
+    await setSetting('whatsapp_session_backup', JSON.stringify(filesMap));
+  } catch (err) {
+    console.warn('WhatsApp DB session backup warning:', err.message);
+  }
 }
 
 /**
@@ -37,6 +79,10 @@ function formatPhoneToJid(phoneStr) {
 
 async function connectToWhatsApp() {
   const logger = pino({ level: 'silent' });
+
+  // Restore session keys from SQL database if container restarted
+  await restoreAuthFromDatabase();
+
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
   authState = state;
 
@@ -50,7 +96,10 @@ async function connectToWhatsApp() {
     browser: ['IT Dept 25/26 System', 'Chrome', '1.0.0']
   });
 
-  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('creds.update', async () => {
+    await saveCreds();
+    await backupAuthToDatabase();
+  });
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -58,58 +107,53 @@ async function connectToWhatsApp() {
     if (qr) {
       currentQr = await QRCode.toDataURL(qr);
       isConnected = false;
-      console.log('⚡ New WhatsApp QR Code generated for Admin UI.');
+      connectedUser = null;
+      console.log('⚡ New WhatsApp QR Code generated for Admin authentication.');
     }
 
     if (connection === 'open') {
       currentQr = null;
       isConnected = true;
       connectedUser = sock.user;
-      console.log('✅ WhatsApp Client Connected! Logged in as:', connectedUser?.id || connectedUser?.name);
+      console.log('✅ WhatsApp Web Client connected successfully:', sock.user?.id || sock.user?.name);
+      await backupAuthToDatabase();
     }
 
     if (connection === 'close') {
       isConnected = false;
-      connectedUser = null;
-      const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
-      console.log('⚠️ WhatsApp Connection Closed. Reconnecting:', shouldReconnect);
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       
-      if (!shouldReconnect) {
-        console.log('❌ WhatsApp session logged out. Admin email notification triggered.');
-        currentQr = null;
-        try {
-          const { sendEmail } = require('./mailer');
-          const { getSetting } = require('./database');
-          const adminEmail = await getSetting('brevoSenderEmail') || process.env.BREVO_SENDER_EMAIL;
-          if (adminEmail) {
-            sendEmail({
-              to: adminEmail,
-              subject: '⚠️ ACTION REQUIRED: WhatsApp Disconnected - IT Dept 25/26 System',
-              html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; background: #0f172a; color: #ffffff; border-radius: 12px;">
-                  <h2 style="color: #ef4444;">⚠️ WhatsApp Web Session Disconnected</h2>
-                  <p>The WhatsApp automation engine for <strong>IT Department 25/26 Set</strong> has been unlinked.</p>
-                  <p>Please open the Admin Portal immediately to scan the new QR Code and re-authenticate:</p>
-                  <p><a href="http://localhost:3000/admin.html" style="color: #38bdf8; font-weight: bold;">Open Admin Control Panel</a></p>
-                </div>
-              `
-            }).catch(console.error);
-          }
-        } catch (err) {
-          console.error('Failed to send disconnect email:', err.message);
+      console.log(`⚠️ WhatsApp connection closed (Status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
+
+      if (statusCode === DisconnectReason.loggedOut) {
+        // Clear local and DB session backup if explicitly logged out
+        if (fs.existsSync(authFolder)) {
+          fs.rmSync(authFolder, { recursive: true, force: true });
         }
-      } else {
+        await setSetting('whatsapp_session_backup', '');
+        
+        // Notify admin via Brevo email that WhatsApp session requires re-auth
+        sendAdminAlertEmail(
+          'WhatsApp Disconnected - Re-Authentication Required',
+          'Your WhatsApp Web session for the IT Dept 25/26 Birthday System has logged out. Please visit the Admin Portal to scan a new QR code.'
+        ).catch(console.error);
+      }
+
+      if (shouldReconnect) {
         setTimeout(connectToWhatsApp, 5000);
       }
     }
   });
+
+  return sock;
 }
 
 function getStatus() {
   return {
     connected: isConnected,
-    user: connectedUser,
-    qr: currentQr
+    qr: currentQr,
+    user: connectedUser
   };
 }
 
@@ -118,54 +162,35 @@ async function getJoinedGroups() {
     throw new Error('WhatsApp client is not connected.');
   }
   const groupData = await sock.groupFetchAllParticipating();
-  const groups = Object.values(groupData).map(g => ({
+  const groupsList = Object.values(groupData).map(g => ({
     id: g.id,
     subject: g.subject,
-    participantsCount: g.participants ? g.participants.length : 0
+    participantsCount: g.participants?.length || 0
   }));
-  return groups;
+  return groupsList;
 }
 
-async function sendDirectMessage(phone, text, photoPath = null) {
+async function sendDirectMessage(phoneStr, textMessage) {
   if (!sock || !isConnected) {
     throw new Error('WhatsApp client is not connected.');
   }
-
-  const jid = formatPhoneToJid(phone);
-
-  if (photoPath && fs.existsSync(photoPath)) {
-    const imageBuffer = fs.readFileSync(photoPath);
-    await sock.sendMessage(jid, {
-      image: imageBuffer,
-      caption: text
-    });
-  } else {
-    await sock.sendMessage(jid, { text });
-  }
-
-  console.log(`📱 WhatsApp DM sent to ${phone} (${jid})`);
+  const jid = formatPhoneToJid(phoneStr);
+  const result = await sock.sendMessage(jid, { text: textMessage });
+  return result;
 }
 
-async function sendGroupMessage(groupJid, text, photoPath = null) {
+async function sendGroupMessageWithImage(groupJid, textMessage, imageBuffer) {
   if (!sock || !isConnected) {
     throw new Error('WhatsApp client is not connected.');
   }
-
-  if (!groupJid) {
-    throw new Error('Target WhatsApp Announcement Group is not configured.');
-  }
-
-  if (photoPath && fs.existsSync(photoPath)) {
-    const imageBuffer = fs.readFileSync(photoPath);
-    await sock.sendMessage(groupJid, {
-      image: imageBuffer,
-      caption: text
-    });
+  let messagePayload = { caption: textMessage };
+  if (imageBuffer) {
+    messagePayload.image = imageBuffer;
   } else {
-    await sock.sendMessage(groupJid, { text });
+    messagePayload = { text: textMessage };
   }
-
-  console.log(`📣 WhatsApp Group Message sent to ${groupJid}`);
+  const result = await sock.sendMessage(groupJid, messagePayload);
+  return result;
 }
 
 module.exports = {
@@ -173,6 +198,5 @@ module.exports = {
   getStatus,
   getJoinedGroups,
   sendDirectMessage,
-  sendGroupMessage,
-  formatPhoneToJid
+  sendGroupMessageWithImage
 };
