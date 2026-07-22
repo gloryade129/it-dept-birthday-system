@@ -44,41 +44,82 @@ function renderTemplate(templateStr, data) {
 }
 
 /**
- * Send Email via Brevo SMTP
+ * Fallback: Send Email via Brevo HTTP v3 REST API (bypasses SMTP 535 auth blocks)
+ */
+async function sendViaBrevoApi({ to, subject, html, text, senderEmail, senderName, apiKey }) {
+  const url = 'https://api.brevo.com/v3/smtp/email';
+  const payload = {
+    sender: {
+      name: senderName || 'IT Dept 25/26',
+      email: senderEmail || 'adeniranglory129@gmail.com'
+    },
+    to: [{ email: to }],
+    subject: subject,
+    htmlContent: html,
+    textContent: text || html.replace(/<[^>]+>/g, '')
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  if (response.ok) {
+    console.log(`✉️ Email sent to ${to} via Brevo HTTP REST API! Message ID: ${data.messageId || data.id}`);
+    return data;
+  } else {
+    throw new Error(`Brevo HTTP API Error (${response.status}): ${data.message || JSON.stringify(data)}`);
+  }
+}
+
+/**
+ * Send Email via Brevo (Tries SMTP first, falls back to HTTP REST API automatically)
  */
 async function sendEmail({ to, subject, html, text }) {
-  const transporter = await createTransporter();
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || await getSetting('brevoSenderEmail') || process.env.BREVO_SMTP_USER;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || await getSetting('brevoSenderEmail') || 'adeniranglory129@gmail.com';
   const senderName = process.env.BREVO_SENDER_NAME || await getSetting('brevoSenderName') || 'IT Dept 25/26';
+  const apiKey = process.env.BREVO_SMTP_PASSWORD || await getSetting('brevoApiKey') || await getSetting('brevoSmtpPassword');
 
-  if (!transporter) {
-    throw new Error('Brevo SMTP credentials not configured. Please set BREVO_SMTP_USER and BREVO_SMTP_PASSWORD in .env or Admin Settings.');
-  }
+  const transporter = await createTransporter();
 
   const mailOptions = {
-    from: `"${senderName}" <${senderEmail || 'no-reply@itdept2526.org'}>`,
+    from: `"${senderName}" <${senderEmail}>`,
     to,
     subject,
     html,
     text: text || html.replace(/<[^>]+>/g, '')
   };
 
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✉️ Email sent to ${to} via Brevo. Message ID: ${info.messageId}`);
-    return info;
-  } catch (err) {
-    if (err.message && err.message.includes('535') && senderEmail) {
-      console.warn(`⚠️ Brevo SMTP Auth failed with BREVO_SMTP_USER. Retrying authentication with BREVO_SENDER_EMAIL (${senderEmail})...`);
-      const fallbackTransporter = await createTransporter(senderEmail);
-      if (fallbackTransporter) {
-        const info = await fallbackTransporter.sendMail(mailOptions);
-        console.log(`✉️ Email sent to ${to} via Brevo (Fallback Auth). Message ID: ${info.messageId}`);
-        return info;
-      }
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`✉️ Email sent to ${to} via Brevo SMTP. Message ID: ${info.messageId}`);
+      return info;
+    } catch (err) {
+      console.warn(`⚠️ Brevo SMTP error (${err.message}). Auto-switching to Brevo HTTP v3 REST API...`);
     }
-    throw err;
   }
+
+  // Automatic Fallback: Brevo HTTP v3 REST API
+  if (apiKey) {
+    return await sendViaBrevoApi({
+      to,
+      subject,
+      html,
+      text,
+      senderEmail,
+      senderName,
+      apiKey
+    });
+  }
+
+  throw new Error('Brevo credentials missing. Please set BREVO_SMTP_PASSWORD in .env or Admin Settings.');
 }
 
 /**
