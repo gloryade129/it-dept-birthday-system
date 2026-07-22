@@ -9,7 +9,6 @@ const { db, initDatabase, getSetting, setSetting, getAllSettings } = require('./
 const { connectToWhatsApp, getStatus, getJoinedGroups } = require('./whatsapp');
 const { initSchedulers, sendInstantRegistrationConfirmations, triggerManualDispatch } = require('./scheduler');
 const { sendEmail, renderTemplate } = require('./mailer');
-const { generateBirthdayFlyer } = require('./flyerGenerator');
 
 
 const app = express();

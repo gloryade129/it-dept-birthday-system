@@ -17,7 +17,6 @@
   "author": "IT Dept 25/26",
   "license": "MIT",
   "dependencies": {
-    "@resvg/resvg-js": "^2.6.2",
     "@whiskeysockets/baileys": "6.17.16",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

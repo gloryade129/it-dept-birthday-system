@@ -2,7 +2,6 @@ const cron = require('node-cron');
 const { db, getSetting, getAllSettings } = require('./database');
 const { sendDirectMessage, sendGroupMessage } = require('./whatsapp');
 const { sendEmail, renderTemplate } = require('./mailer');
-const { generateBirthdayFlyer } = require('./flyerGenerator');
 const path = require('path');
 const fs = require('fs');
 
