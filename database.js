@@ -6,17 +6,41 @@ const usePostgres = !!process.env.DATABASE_URL;
 let pgPool = null;
 let sqliteDb = null;
 
-if (usePostgres) {
-  console.log('🐘 Initializing Cloud PostgreSQL Database Engine...');
-  try {
-    const isSslEnabled = process.env.DATABASE_SSL === 'true';
+let sslDisabledFallback = false;
+
+function getPgPool() {
+  if (!pgPool) {
+    const isSslDisabled = process.env.DATABASE_SSL === 'false' || sslDisabledFallback;
     pgPool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: isSslEnabled ? { rejectUnauthorized: false } : false
+      ssl: isSslDisabled ? false : { rejectUnauthorized: false }
     });
-  } catch (err) {
-    console.error('PostgreSQL init error:', err.message);
   }
+  return pgPool;
+}
+
+async function queryPg(sql, params) {
+  try {
+    const pool = getPgPool();
+    return await pool.query(sql, params);
+  } catch (err) {
+    if (!sslDisabledFallback && err.message && (err.message.includes('does not support SSL') || err.message.includes('SSL'))) {
+      console.warn('⚠️ PostgreSQL server does not support SSL. Auto-switching to non-SSL connection mode...');
+      sslDisabledFallback = true;
+      if (pgPool) {
+        pgPool.end().catch(() => {});
+        pgPool = null;
+      }
+      const pool = getPgPool();
+      return await pool.query(sql, params);
+    }
+    throw err;
+  }
+}
+
+if (usePostgres) {
+  console.log('🐘 Initializing Cloud PostgreSQL Database Engine...');
+  getPgPool();
 } else {
   console.log('📂 Initializing Local SQLite Database Engine...');
   try {
@@ -40,7 +64,7 @@ function formatSqlForPg(sql) {
 
 const db = {
   asyncRun: function (sql, params = []) {
-    if (usePostgres && pgPool) {
+    if (usePostgres) {
       return new Promise(async (resolve, reject) => {
         try {
           let pgSql = formatSqlForPg(sql);
@@ -49,7 +73,7 @@ const db = {
           if (trimmed.startsWith('INSERT') && !trimmed.includes('RETURNING')) {
             pgSql += ' RETURNING *';
           }
-          const res = await pgPool.query(pgSql, params);
+          const res = await queryPg(pgSql, params);
           const firstRow = res.rows && res.rows[0] ? res.rows[0] : {};
           const lastID = firstRow.id || null;
           resolve({ lastID, rowCount: res.rowCount });
@@ -71,11 +95,11 @@ const db = {
   },
 
   asyncGet: function (sql, params = []) {
-    if (usePostgres && pgPool) {
+    if (usePostgres) {
       return new Promise(async (resolve, reject) => {
         try {
           const pgSql = formatSqlForPg(sql);
-          const res = await pgPool.query(pgSql, params);
+          const res = await queryPg(pgSql, params);
           resolve(res.rows[0] || null);
         } catch (err) {
           reject(err);
@@ -94,11 +118,11 @@ const db = {
   },
 
   asyncAll: function (sql, params = []) {
-    if (usePostgres && pgPool) {
+    if (usePostgres) {
       return new Promise(async (resolve, reject) => {
         try {
           const pgSql = formatSqlForPg(sql);
-          const res = await pgPool.query(pgSql, params);
+          const res = await queryPg(pgSql, params);
           resolve(res.rows);
         } catch (err) {
           reject(err);
