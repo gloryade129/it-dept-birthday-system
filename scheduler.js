@@ -262,19 +262,9 @@ async function runMorningGroupDispatches() {
           photoPath: userPhotoPath
         });
 
-        // 1. Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
+        // Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
         await sendDirectMessage(adminPhone, text, flyerPath);
         console.log(`✅ Morning Graphic Flyer & Group Announcement delivered to Class Rep WhatsApp DM (${adminPhone}) ready to forward!`);
-
-        // 2. Also attempt direct group dispatch if group JID configured
-        const groupJid = settings.targetGroupJid;
-        if (groupJid) {
-          try {
-            await sendGroupMessage(groupJid, text, flyerPath);
-          } catch (gErr) {
-            console.warn(`⚠️ Group direct dispatch notice (${gErr.message}). Announcement delivered to Class Rep DM!`);
-          }
-        }
 
         await db.asyncRun(
           'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
@@ -373,19 +363,9 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
         photoPath: userPhotoPath
       });
 
-      // 1. Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
+      // Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
       await sendDirectMessage(adminPhone, text, flyerPath);
       console.log(`✅ Graphic Flyer & Group Announcement delivered to Class Rep WhatsApp DM (${adminPhone}) ready to forward!`);
-
-      // 2. Also attempt direct group dispatch if group JID configured
-      const groupJid = settings.targetGroupJid;
-      if (groupJid) {
-        try {
-          await sendGroupMessage(groupJid, text, flyerPath);
-        } catch (gErr) {
-          console.warn(`⚠️ Group direct dispatch notice (${gErr.message}). Announcement delivered to Class Rep DM!`);
-        }
-      }
 
       await db.asyncRun(
         'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
