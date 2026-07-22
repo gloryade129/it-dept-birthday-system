@@ -220,7 +220,7 @@ app.get('/api/logs', async (req, res) => {
 });
 
 /**
- * Generate and return Flyer PNG & Group Caption for Admin Portal 1-click Download
+ * Generate and return Flyer PNG as base64 & Group Caption for Admin Portal 1-click Download
  */
 app.get('/api/flyer/:studentId', async (req, res) => {
   try {
@@ -249,7 +249,13 @@ app.get('/api/flyer/:studentId', async (req, res) => {
       photoPath: userPhotoPath
     });
 
-    const flyerUrl = flyerPath ? `/flyers/${path.basename(flyerPath)}` : null;
+    // Read PNG and return as base64 data URI so admin panel can display/download
+    // regardless of whether it's hosted on Vercel or Pxxl
+    let flyerBase64 = null;
+    if (flyerPath && fs.existsSync(flyerPath)) {
+      const pngBuffer = fs.readFileSync(flyerPath);
+      flyerBase64 = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+    }
 
     const settings = await getAllSettings();
     const templateData = {
@@ -265,7 +271,7 @@ app.get('/api/flyer/:studentId', async (req, res) => {
     const caption = renderTemplate(rawGroupTpl, templateData);
 
     res.json({
-      flyerUrl,
+      flyerBase64,
       caption,
       fullName,
       nickname

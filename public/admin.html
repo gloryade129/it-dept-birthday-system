@@ -591,17 +591,32 @@
         showToast(`Generating graphic flyer for ${name}...`, 'info');
         const res = await fetch(`/api/flyer/${id}`);
         const data = await res.json();
-        if (res.ok && data.flyerUrl) {
-          document.getElementById('flyerModalImg').src = data.flyerUrl;
+        if (res.ok && data.flyerBase64) {
+          // Display image directly from base64 data URI
+          document.getElementById('flyerModalImg').src = data.flyerBase64;
           document.getElementById('flyerModalCaption').value = data.caption;
-          document.getElementById('flyerModalDownloadBtn').href = data.flyerUrl;
           document.getElementById('flyerModalTitle').textContent = `${data.fullName} (${data.nickname || 'Celebrant'})`;
+
+          // Create a downloadable blob URL from base64
+          const base64Data = data.flyerBase64.split(',')[1];
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'image/png' });
+          const blobUrl = URL.createObjectURL(blob);
+          const dlBtn = document.getElementById('flyerModalDownloadBtn');
+          dlBtn.href = blobUrl;
+          dlBtn.download = `Birthday_Flyer_${data.fullName.replace(/\s+/g, '_')}.png`;
+
           document.getElementById('flyerModal').style.display = 'flex';
         } else {
-          showToast('Could not generate flyer.', 'error');
+          showToast(data.error || 'Could not generate flyer.', 'error');
         }
       } catch (err) {
-        showToast('Error generating flyer.', 'error');
+        showToast('Error generating flyer: ' + err.message, 'error');
       }
     }
 
