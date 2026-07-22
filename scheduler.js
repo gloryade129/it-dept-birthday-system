@@ -37,11 +37,51 @@ function normalizeStudent(s) {
     id,
     fullName,
     nickname,
+  return {
+    id,
+    fullName,
+    nickname,
     birthMonth,
     birthDay,
     phone,
     email,
     photoUrl
+  };
+}
+
+/**
+ * Build rich template parameters object containing photoHtml, fullPhotoUrl, and student fields
+ */
+function buildTemplateData(student) {
+  const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
+  const fullName = student.fullName || '';
+  const nickname = student.nickname || (fullName ? fullName.split(' ')[0] : 'Friend');
+  const photoUrl = student.photoUrl || '';
+
+  const baseUrl = process.env.APP_URL || 'https://it-dept-birthday-system.pxxl.run';
+  let fullPhotoUrl = '';
+  let photoHtml = '';
+
+  if (photoUrl) {
+    fullPhotoUrl = photoUrl.startsWith('http') ? photoUrl : `${baseUrl}${photoUrl.startsWith('/') ? '' : '/'}${photoUrl}`;
+    photoHtml = `<div style="text-align: center; margin: 20px 0;"><img src="${fullPhotoUrl}" alt="${fullName}" style="width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #38bdf8; box-shadow: 0 10px 25px rgba(56, 189, 248, 0.35); display: inline-block;" /></div>`;
+  } else {
+    const parts = fullName.split(' ').filter(Boolean);
+    const initials = parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts.length === 1 ? parts[0].substring(0, 2).toUpperCase() : 'IT';
+    photoHtml = `<div style="text-align: center; margin: 20px 0;"><div style="width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, #38bdf8, #6366f1); display: inline-flex; align-items: center; justify-content: center; font-size: 38px; font-weight: 700; color: #ffffff; margin: 0 auto; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);">${initials}</div></div>`;
+  }
+
+  return {
+    fullName,
+    nickname,
+    birthDate: birthDateStr,
+    phone: student.phone || '',
+    email: student.email || '',
+    photoUrl: fullPhotoUrl || photoUrl,
+    photoHtml,
+    department: 'Information Technology 25/26'
   };
 }
 
@@ -53,21 +93,13 @@ async function sendInstantRegistrationConfirmations(studentId, studentData) {
   const student = normalizeStudent(typeof rawStudent === 'object' ? rawStudent : { id: studentId });
   const settings = await getAllSettings();
 
-  const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
   const id = student.id || studentId;
+  const templateData = buildTemplateData(student);
 
-  const templateData = {
-    fullName: student.fullName,
-    nickname: student.nickname,
-    birthDate: birthDateStr,
-    phone: student.phone,
-    email: student.email,
-    department: 'Information Technology 25/26'
-  };
-
-  // 1. Instant WhatsApp Welcome DM
+  // 1. Instant WhatsApp Welcome DM (Registration Copy)
   try {
-    const rawTemplate = settings.welcomeDmTemplate || 'Hi {nickname}, welcome to the IT Dept 25/26 Birthday Network! 👋\n\nYour birthday details ({birthDate}) have been recorded successfully. Expect automated birthday wishes, a custom graphic flyer, and group celebration on your special day! 🎁✨';
+    const defaultWelcomeDm = 'Hi {nickname}, welcome to the IT Dept 25/26 Birthday Network! 👋\n\nHere is a copy of your registered details:\n👤 Name: {fullName} ({nickname})\n🎂 Date of Birth: {birthDate}\n📱 WhatsApp: {phone}\n✉️ Email: {email}\n\nOn your special day, expect automated birthday wishes, an official group announcement with your photo, and a celebration email card! 🎁✨';
+    const rawTemplate = settings.welcomeDmTemplate || defaultWelcomeDm;
     const welcomeText = renderTemplate(rawTemplate, templateData);
     
     if (student.phone) {
@@ -86,11 +118,32 @@ async function sendInstantRegistrationConfirmations(studentId, studentData) {
     );
   }
 
-  // 2. Instant Brevo Welcome Email
-  try {
-    if (student.email) {
-      const rawSubject = settings.welcomeEmailSubject || 'Welcome to IT Dept 25/26 Birthday Registry';
-      const rawTemplate = settings.welcomeEmailTemplate || '<p>Dear {fullName}, welcome to IT Dept 25/26 Birthday Network!</p>';
+      const defaultWelcomeEmail = `<div style="font-family: 'Poppins', 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #080c14; color: #f1f5f9; border-radius: 16px; padding: 32px; border: 1px solid #1e293b;">
+  <h2 style="color: #38bdf8; text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 4px;">Registration Confirmation Copy 📋</h2>
+  <p style="text-align: center; color: #94a3b8; font-size: 14px; margin-top: 0;">Information Technology Department 25/26 Birthday Network</p>
+  
+  {photoHtml}
+
+  <p>Dear <strong>{fullName}</strong>,</p>
+  <p>Your birthday details have been successfully registered in the <strong>IT Department 25/26 Set Registry</strong>. Here is a copy of your submitted details for your records:</p>
+  
+  <div style="background: #0f172a; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #38bdf8;">
+    <p style="margin: 6px 0;"><strong>Full Name:</strong> {fullName}</p>
+    <p style="margin: 6px 0;"><strong>Preferred Nickname:</strong> {nickname}</p>
+    <p style="margin: 6px 0;"><strong>Date of Birth:</strong> {birthDate}</p>
+    <p style="margin: 6px 0;"><strong>WhatsApp Phone:</strong> {phone}</p>
+    <p style="margin: 6px 0;"><strong>Email Address:</strong> {email}</p>
+  </div>
+  
+  <p style="font-size: 14px; color: #cbd5e1;">When your special day comes, expect warm birthday wishes in your WhatsApp DM, an official announcement with your photo in our class group, and a birthday card in your inbox!</p>
+  
+  <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: 30px; border-top: 1px solid #1e293b; padding-top: 16px;">
+    Information Technology Department 25/26 Set
+  </p>
+</div>`;
+
+      const rawSubject = settings.welcomeEmailSubject || 'Registration Confirmation Copy — IT Dept 25/26';
+      const rawTemplate = settings.welcomeEmailTemplate || defaultWelcomeEmail;
       const subject = renderTemplate(rawSubject, templateData);
       const html = renderTemplate(rawTemplate, templateData);
       await sendEmail({ to: student.email, subject, html });
@@ -134,16 +187,7 @@ async function runMidnightBirthdayDispatches() {
 
   for (const rawS of rawCelebrants) {
     const student = normalizeStudent(rawS);
-    const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
-
-    const templateData = {
-      fullName: student.fullName,
-      nickname: student.nickname,
-      birthDate: birthDateStr,
-      phone: student.phone,
-      email: student.email,
-      department: 'Information Technology 25/26'
-    };
+    const templateData = buildTemplateData(student);
 
     // Check if DM sent already today
     const dmLog = await db.asyncGet(
@@ -236,15 +280,7 @@ async function runMorningGroupDispatches() {
 
     if (!groupLog) {
       try {
-        const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
-        const templateData = {
-          fullName: student.fullName,
-          nickname: student.nickname,
-          birthDate: birthDateStr,
-          phone: student.phone,
-          email: student.email,
-          department: 'Information Technology 25/26'
-        };
+        const templateData = buildTemplateData(student);
 
         const rawGroupTpl = settings.birthdayGroupTemplate || '🎂 IT DEPT 25/26 BIRTHDAY ANNOUNCEMENT 🎂\n\nToday we celebrate *{fullName}* ({nickname})! 🎉🎈';
         const text = renderTemplate(rawGroupTpl, templateData);
@@ -293,14 +329,7 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
   const results = {};
 
   const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
-  const templateData = {
-    fullName: student.fullName,
-    nickname: student.nickname,
-    birthDate: birthDateStr,
-    phone: student.phone,
-    email: student.email,
-    department: 'Information Technology 25/26'
-  };
+  const templateData = buildTemplateData(student);
 
   let userPhotoPath = null;
   if (student.photoUrl) {
