@@ -97,7 +97,8 @@ app.post('/api/students', upload.single('photo'), async (req, res) => {
       birthMonth,
       birthDay,
       phone,
-      email
+      email,
+      photoUrl
     }).catch(err => console.error('Registration instant confirmation error:', err));
 
     res.status(201).json({
