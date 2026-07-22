@@ -9,9 +9,10 @@ let sqliteDb = null;
 if (usePostgres) {
   console.log('🐘 Initializing Cloud PostgreSQL Database Engine...');
   try {
+    const isSslEnabled = process.env.DATABASE_SSL === 'true';
     pgPool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+      ssl: isSslEnabled ? { rejectUnauthorized: false } : false
     });
   } catch (err) {
     console.error('PostgreSQL init error:', err.message);
@@ -210,9 +211,8 @@ async function initDatabase() {
             <p style="margin: 4px 0;"><strong>Name:</strong> {fullName} ({nickname})</p>
             <p style="margin: 4px 0;"><strong>Birthday:</strong> {birthDate}</p>
             <p style="margin: 4px 0;"><strong>WhatsApp:</strong> {phone}</p>
-            <p style="margin: 4px 0;"><strong>Email:</strong> {email}</p>
           </div>
-          <p>When your special day comes, expect warm birthday wishes in your WhatsApp DM, an official announcement in our department group, and a birthday card right in your inbox.</p>
+          <p>When your special day comes, expect warm birthday wishes in your WhatsApp DM, an official announcement in our department group, and a birthday card in your inbox.</p>
           <p style="color: #94a3b8; font-size: 13px; text-align: center; margin-top: 30px;">Information Technology Department 25/26 Set</p>
         </div>
       `,
