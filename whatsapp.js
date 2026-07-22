@@ -35,9 +35,9 @@ async function restoreAuthFromDatabase() {
       const filesMap = JSON.parse(backupJson);
       for (const [filename, content] of Object.entries(filesMap)) {
         const filePath = path.join(authFolder, filename);
-        fs.writeFileSync(filePath, content);
+        fs.writeFileSync(filePath, Buffer.from(content, 'base64'));
       }
-      console.log('✅ Restored persistent WhatsApp session keys from database backup.');
+      console.log('✅ Restored persistent WhatsApp session keys from database backup (base64 mode).');
     }
   } catch (err) {
     console.warn('WhatsApp DB session restore warning:', err.message);
@@ -55,7 +55,7 @@ async function backupAuthToDatabase() {
     for (const f of files) {
       const filePath = path.join(authFolder, f);
       if (fs.statSync(filePath).isFile()) {
-        filesMap[f] = fs.readFileSync(filePath, 'utf8');
+        filesMap[f] = fs.readFileSync(filePath).toString('base64');
       }
     }
     await setSetting('whatsapp_session_backup', JSON.stringify(filesMap));
