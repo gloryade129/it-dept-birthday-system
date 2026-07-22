@@ -14,59 +14,96 @@ function formatBirthDate(month, day) {
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
-  return `${monthNames[month - 1]} ${day}`;
+  const mIndex = parseInt(month, 10) - 1;
+  const mName = monthNames[mIndex] || 'Special Month';
+  return `${mName} ${day}`;
+}
+
+/**
+ * Extract normalized student fields handling both PostgreSQL (lowercase) and SQLite (camelCase)
+ */
+function normalizeStudent(s) {
+  if (!s) return null;
+  const fullName = s.fullName || s.fullname || '';
+  const nickname = s.nickname || (fullName ? fullName.split(' ')[0] : 'Friend');
+  const birthMonth = s.birthMonth || s.birthmonth;
+  const birthDay = s.birthDay || s.birthday;
+  const phone = s.phone || '';
+  const email = s.email || '';
+  const photoUrl = s.photoUrl || s.photourl || null;
+  const id = s.id;
+
+  return {
+    id,
+    fullName,
+    nickname,
+    birthMonth,
+    birthDay,
+    phone,
+    email,
+    photoUrl
+  };
 }
 
 /**
  * Send Instant Welcome DM and Email upon form submission (100% Automated)
  */
 async function sendInstantRegistrationConfirmations(studentId, studentData) {
-  const student = studentData || studentId; // Support both (student) and (id, data) call styles
+  const rawStudent = studentData || studentId;
+  const student = normalizeStudent(typeof rawStudent === 'object' ? rawStudent : { id: studentId });
   const settings = await getAllSettings();
-  const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
 
-  const id = typeof studentId === 'number' ? studentId : student.id;
+  const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
+  const id = student.id || studentId;
 
   const templateData = {
-    fullName: student.fullName || '',
-    nickname: student.nickname || (student.fullName ? student.fullName.split(' ')[0] : 'Friend'),
+    fullName: student.fullName,
+    nickname: student.nickname,
     birthDate: birthDateStr,
-    phone: student.phone || '',
-    email: student.email || '',
+    phone: student.phone,
+    email: student.email,
     department: 'Information Technology 25/26'
   };
 
   // 1. Instant WhatsApp Welcome DM
   try {
-    const welcomeText = renderTemplate(settings.welcomeDmTemplate, templateData);
-    await sendDirectMessage(student.phone, welcomeText);
-    await db.asyncRun(
-      'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
-      [id, new Date().getFullYear(), 'welcome_dm', 'success', null]
-    );
-    console.log(`✅ Automated Welcome DM sent to ${student.fullName}`);
+    const rawTemplate = settings.welcomeDmTemplate || 'Hi {nickname}, welcome to the IT Dept 25/26 Birthday Network! 👋\n\nYour birthday details ({birthDate}) have been recorded successfully. Expect automated birthday wishes, a custom graphic flyer, and group celebration on your special day! 🎁✨';
+    const welcomeText = renderTemplate(rawTemplate, templateData);
+    
+    if (student.phone) {
+      await sendDirectMessage(student.phone, welcomeText);
+      await db.asyncRun(
+        'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
+        [id, new Date().getFullYear(), 'welcome_dm', 'success', null]
+      );
+      console.log(`✅ Automated Welcome DM sent to ${student.fullName}`);
+    }
   } catch (err) {
     console.error(`❌ Automated Welcome DM Failed for ${student.fullName}:`, err.message);
     await db.asyncRun(
-      'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
       [id, new Date().getFullYear(), 'welcome_dm', 'failed', err.message]
     );
   }
 
   // 2. Instant Brevo Welcome Email
   try {
-    const subject = renderTemplate(settings.welcomeEmailSubject, templateData);
-    const html = renderTemplate(settings.welcomeEmailTemplate, templateData);
-    await sendEmail({ to: student.email, subject, html });
-    await db.asyncRun(
-      'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
-      [id, new Date().getFullYear(), 'welcome_email', 'success', null]
-    );
-    console.log(`✅ Automated Welcome Email sent to ${student.fullName}`);
+    if (student.email) {
+      const rawSubject = settings.welcomeEmailSubject || 'Welcome to IT Dept 25/26 Birthday Registry';
+      const rawTemplate = settings.welcomeEmailTemplate || '<p>Dear {fullName}, welcome to IT Dept 25/26 Birthday Network!</p>';
+      const subject = renderTemplate(rawSubject, templateData);
+      const html = renderTemplate(rawTemplate, templateData);
+      await sendEmail({ to: student.email, subject, html });
+      await db.asyncRun(
+        'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
+        [id, new Date().getFullYear(), 'welcome_email', 'success', null]
+      );
+      console.log(`✅ Automated Welcome Email sent to ${student.fullName}`);
+    }
   } catch (err) {
     console.error(`❌ Automated Welcome Email Failed for ${student.fullName}:`, err.message);
     await db.asyncRun(
-      'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
       [id, new Date().getFullYear(), 'welcome_email', 'failed', err.message]
     );
   }
@@ -82,24 +119,27 @@ async function runMidnightBirthdayDispatches() {
   const day = now.getDate();
   const year = now.getFullYear();
 
-  const celebrants = await db.asyncAll(
+  const rawCelebrants = await db.asyncAll(
     'SELECT * FROM students WHERE birthmonth = ? AND birthday = ?',
     [month, day]
   );
 
-  if (celebrants.length === 0) {
+  if (rawCelebrants.length === 0) {
     console.log(`ℹ️ [Midnight Job] No celebrants recorded for today (${month}/${day}).`);
     return;
   }
 
-  console.log(`🎉 Found ${celebrants.length} celebrant(s) for today (${month}/${day})! Dispatching midnight wishes...`);
+  console.log(`🎉 Found ${rawCelebrants.length} celebrant(s) for today (${month}/${day})! Dispatching midnight wishes...`);
   const settings = await getAllSettings();
 
-  for (const student of celebrants) {
+  for (const rawS of rawCelebrants) {
+    const student = normalizeStudent(rawS);
+    const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
+
     const templateData = {
       fullName: student.fullName,
-      nickname: student.nickname || student.fullName.split(' ')[0],
-      birthDate: formatBirthDate(student.birthMonth, student.birthDay),
+      nickname: student.nickname,
+      birthDate: birthDateStr,
       phone: student.phone,
       email: student.email,
       department: 'Information Technology 25/26'
@@ -107,18 +147,15 @@ async function runMidnightBirthdayDispatches() {
 
     // Check if DM sent already today
     const dmLog = await db.asyncGet(
-      'SELECT id FROM dispatch_logs WHERE studentid = ? AND year = ? AND channel = "dm" AND status = "success"',
+      'SELECT id FROM dispatch_logs WHERE studentid = ? AND year = ? AND channel = \'dm\' AND status = \'success\'',
       [student.id, year]
     );
 
     if (!dmLog) {
       try {
-        const text = renderTemplate(settings.birthdayDmTemplate, templateData);
-        let photoPath = null;
-        if (student.photoUrl) {
-          photoPath = path.join(__dirname, 'public', student.photoUrl);
-        }
-        await sendDirectMessage(student.phone, text, photoPath);
+        const rawDmTpl = settings.birthdayDmTemplate || 'Happy Birthday, {nickname}! 🎉🎂\n\nOn behalf of the IT Dept 25/26 Set, we celebrate you today! 🎈';
+        const text = renderTemplate(rawDmTpl, templateData);
+        await sendDirectMessage(student.phone, text);
         await db.asyncRun(
           'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
           [student.id, year, 'dm', 'success']
@@ -127,7 +164,7 @@ async function runMidnightBirthdayDispatches() {
       } catch (err) {
         console.error(`❌ Midnight WhatsApp DM failed for ${student.fullName}:`, err.message);
         await db.asyncRun(
-          'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
           [student.id, year, 'dm', 'failed', err.message]
         );
       }
@@ -137,14 +174,16 @@ async function runMidnightBirthdayDispatches() {
 
     // Check if Email sent already today
     const emailLog = await db.asyncGet(
-      'SELECT id FROM dispatch_logs WHERE studentid = ? AND year = ? AND channel = "email" AND status = "success"',
+      'SELECT id FROM dispatch_logs WHERE studentid = ? AND year = ? AND channel = \'email\' AND status = \'success\'',
       [student.id, year]
     );
 
     if (!emailLog) {
       try {
-        const subject = renderTemplate(settings.birthdayEmailSubject, templateData);
-        const html = renderTemplate(settings.birthdayEmailTemplate, templateData);
+        const rawSub = settings.birthdayEmailSubject || 'Happy Birthday from IT Dept 25/26!';
+        const rawTpl = settings.birthdayEmailTemplate || '<p>Happy Birthday, {fullName}!</p>';
+        const subject = renderTemplate(rawSub, templateData);
+        const html = renderTemplate(rawTpl, templateData);
         await sendEmail({ to: student.email, subject, html });
         await db.asyncRun(
           'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
@@ -154,7 +193,7 @@ async function runMidnightBirthdayDispatches() {
       } catch (err) {
         console.error(`❌ Midnight Brevo Email failed for ${student.fullName}:`, err.message);
         await db.asyncRun(
-          'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
           [student.id, year, 'email', 'failed', err.message]
         );
       }
@@ -174,12 +213,12 @@ async function runMorningGroupDispatches() {
   const day = now.getDate();
   const year = now.getFullYear();
 
-  const celebrants = await db.asyncAll(
+  const rawCelebrants = await db.asyncAll(
     'SELECT * FROM students WHERE birthmonth = ? AND birthday = ?',
     [month, day]
   );
 
-  if (celebrants.length === 0) {
+  if (rawCelebrants.length === 0) {
     console.log(`ℹ️ [Morning Group Job] No group announcements needed for today (${month}/${day}).`);
     return;
   }
@@ -192,9 +231,11 @@ async function runMorningGroupDispatches() {
     return;
   }
 
-  for (const student of celebrants) {
+  for (const rawS of rawCelebrants) {
+    const student = normalizeStudent(rawS);
+
     const groupLog = await db.asyncGet(
-      'SELECT id FROM dispatch_logs WHERE studentid = ? AND year = ? AND channel = "group" AND status = "success"',
+      'SELECT id FROM dispatch_logs WHERE studentid = ? AND year = ? AND channel = \'group\' AND status = \'success\'',
       [student.id, year]
     );
 
@@ -203,20 +244,22 @@ async function runMorningGroupDispatches() {
         const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
         const templateData = {
           fullName: student.fullName,
-          nickname: student.nickname || student.fullName.split(' ')[0],
+          nickname: student.nickname,
           birthDate: birthDateStr,
           phone: student.phone,
           email: student.email,
           department: 'Information Technology 25/26'
         };
 
-        const text = renderTemplate(settings.birthdayGroupTemplate, templateData);
+        const rawGroupTpl = settings.birthdayGroupTemplate || '🎂 IT DEPT 25/26 BIRTHDAY ANNOUNCEMENT 🎂\n\nToday we celebrate *{fullName}* ({nickname})! 🎉🎈';
+        const text = renderTemplate(rawGroupTpl, templateData);
+        
         let userPhotoPath = null;
         if (student.photoUrl) {
           userPhotoPath = path.join(__dirname, 'public', student.photoUrl);
         }
 
-        // Generate dynamic branded birthday graphic flyer image
+        // Generate dynamic branded birthday graphic flyer PNG image
         const flyerPath = await generateBirthdayFlyer({
           fullName: student.fullName,
           nickname: student.nickname,
@@ -233,7 +276,7 @@ async function runMorningGroupDispatches() {
       } catch (err) {
         console.error(`❌ Group Announcement failed for ${student.fullName}:`, err.message);
         await db.asyncRun(
-          'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
           [student.id, year, 'group', 'failed', err.message]
         );
       }
@@ -247,9 +290,10 @@ async function runMorningGroupDispatches() {
  * Manual Admin Trigger/Override for testing or manual re-dispatch
  */
 async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'group']) {
-  const student = await db.asyncGet('SELECT * FROM students WHERE id = ?', [studentId]);
-  if (!student) throw new Error('Student not found.');
+  const rawStudent = await db.asyncGet('SELECT * FROM students WHERE id = ?', [studentId]);
+  if (!rawStudent) throw new Error('Student not found.');
 
+  const student = normalizeStudent(rawStudent);
   const settings = await getAllSettings();
   const year = new Date().getFullYear();
   const results = {};
@@ -257,7 +301,7 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
   const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
   const templateData = {
     fullName: student.fullName,
-    nickname: student.nickname || student.fullName.split(' ')[0],
+    nickname: student.nickname,
     birthDate: birthDateStr,
     phone: student.phone,
     email: student.email,
@@ -271,8 +315,9 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
 
   if (channels.includes('dm')) {
     try {
-      const text = renderTemplate(settings.birthdayDmTemplate, templateData);
-      await sendDirectMessage(student.phone, text, userPhotoPath);
+      const rawDmTpl = settings.birthdayDmTemplate || 'Happy Birthday, {nickname}! 🎉🎂\n\nOn behalf of the IT Dept 25/26 Set, we celebrate you today! 🎈';
+      const text = renderTemplate(rawDmTpl, templateData);
+      await sendDirectMessage(student.phone, text);
       await db.asyncRun(
         'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
         [student.id, year, 'dm', 'success']
@@ -280,7 +325,7 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
       results.dm = { status: 'success' };
     } catch (err) {
       await db.asyncRun(
-        'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
         [student.id, year, 'dm', 'failed', err.message]
       );
       results.dm = { status: 'failed', error: err.message };
@@ -289,8 +334,10 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
 
   if (channels.includes('email')) {
     try {
-      const subject = renderTemplate(settings.birthdayEmailSubject, templateData);
-      const html = renderTemplate(settings.birthdayEmailTemplate, templateData);
+      const rawSub = settings.birthdayEmailSubject || 'Happy Birthday from IT Dept 25/26!';
+      const rawTpl = settings.birthdayEmailTemplate || '<p>Happy Birthday, {fullName}!</p>';
+      const subject = renderTemplate(rawSub, templateData);
+      const html = renderTemplate(rawTpl, templateData);
       await sendEmail({ to: student.email, subject, html });
       await db.asyncRun(
         'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
@@ -299,7 +346,7 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
       results.email = { status: 'success' };
     } catch (err) {
       await db.asyncRun(
-        'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
         [student.id, year, 'email', 'failed', err.message]
       );
       results.email = { status: 'failed', error: err.message };
@@ -308,7 +355,8 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
 
   if (channels.includes('group')) {
     try {
-      const text = renderTemplate(settings.birthdayGroupTemplate, templateData);
+      const rawGroupTpl = settings.birthdayGroupTemplate || '🎂 IT DEPT 25/26 BIRTHDAY ANNOUNCEMENT 🎂\n\nToday we celebrate *{fullName}* ({nickname})! 🎉🎈';
+      const text = renderTemplate(rawGroupTpl, templateData);
       const groupJid = settings.targetGroupJid;
       if (!groupJid) throw new Error('WhatsApp Announcement group not configured.');
 
@@ -327,7 +375,7 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
       results.group = { status: 'success' };
     } catch (err) {
       await db.asyncRun(
-        'INSERT INTO dispatch_logs (studentid, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO dispatch_logs (studentid, year, channel, status, errormessage) VALUES (?, ?, ?, ?, ?)',
         [student.id, year, 'group', 'failed', err.message]
       );
       results.group = { status: 'failed', error: err.message };
@@ -377,4 +425,3 @@ module.exports = {
   runMorningGroupDispatches,
   triggerManualDispatch
 };
-

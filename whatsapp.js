@@ -69,12 +69,26 @@ async function backupAuthToDatabase() {
  * Example: "08012345678" -> "2348012345678@s.whatsapp.net" (Assuming Nigerian country code 234 if starts with 0)
  */
 function formatPhoneToJid(phoneStr) {
-  let cleaned = phoneStr.replace(/\D/g, '');
+  let cleaned = (phoneStr || '').replace(/\D/g, '');
   if (cleaned.startsWith('0')) {
     cleaned = '234' + cleaned.slice(1);
+  } else if (cleaned.length === 10) {
+    cleaned = '234' + cleaned;
   }
   if (!cleaned.endsWith('@s.whatsapp.net')) {
     cleaned = cleaned + '@s.whatsapp.net';
+  }
+  return cleaned;
+}
+
+/**
+ * Format group JID string to Baileys @g.us format
+ */
+function formatGroupJid(groupStr) {
+  let cleaned = (groupStr || '').trim();
+  if (!cleaned) return '';
+  if (!cleaned.endsWith('@g.us')) {
+    cleaned = cleaned + '@g.us';
   }
   return cleaned;
 }
@@ -189,43 +203,59 @@ async function sendDirectMessage(phoneStr, textMessage) {
     throw new Error('WhatsApp client is not connected.');
   }
   const jid = formatPhoneToJid(phoneStr);
+  console.log(`📤 Sending direct WhatsApp message to ${jid}...`);
   const result = await sock.sendMessage(jid, { text: textMessage });
   return result;
 }
 
-async function sendGroupMessageWithImage(groupJid, textMessage, imageBuffer) {
+/**
+ * Send WhatsApp Group Announcement with Flyer Image attachment and failsafe
+ */
+async function sendGroupMessage(groupJidStr, textMessage, imagePathOrBuffer) {
   if (!sock || !isConnected) {
     throw new Error('WhatsApp client is not connected.');
   }
-  let messagePayload = { caption: textMessage };
-  if (imageBuffer) {
-    messagePayload.image = imageBuffer;
-  } else {
-    messagePayload = { text: textMessage };
-  }
-  const result = await sock.sendMessage(groupJid, messagePayload);
-  return result;
-}
 
-/**
- * Alias used by scheduler.js — accepts file path string OR raw Buffer.
- * Automatically reads file from disk if a path string is provided.
- */
-async function sendGroupMessage(groupJid, textMessage, imagePathOrBuffer) {
+  const groupJid = formatGroupJid(groupJidStr);
+  if (!groupJid) {
+    throw new Error('Invalid WhatsApp Group JID.');
+  }
+
   let imageBuffer = null;
   if (imagePathOrBuffer) {
     if (typeof imagePathOrBuffer === 'string') {
-      // It's a file path — read it into a Buffer
       try {
-        imageBuffer = fs.readFileSync(imagePathOrBuffer);
+        if (fs.existsSync(imagePathOrBuffer)) {
+          imageBuffer = fs.readFileSync(imagePathOrBuffer);
+        }
       } catch (err) {
-        console.warn('Could not read flyer image file:', err.message);
+        console.warn('Could not read flyer image file for group message:', err.message);
       }
-    } else {
+    } else if (Buffer.isBuffer(imagePathOrBuffer)) {
       imageBuffer = imagePathOrBuffer;
     }
   }
-  return sendGroupMessageWithImage(groupJid, textMessage, imageBuffer);
+
+  // 1. Try sending message with PNG/JPEG image attachment
+  if (imageBuffer) {
+    try {
+      console.log(`📤 Sending WhatsApp Group announcement with flyer image to ${groupJid}...`);
+      const res = await sock.sendMessage(groupJid, {
+        image: imageBuffer,
+        caption: textMessage
+      });
+      console.log(`✅ WhatsApp Group announcement with flyer sent cleanly to ${groupJid}`);
+      return res;
+    } catch (imgErr) {
+      console.warn(`⚠️ Group image dispatch failed (${imgErr.message}). Falling back to text-only group announcement...`);
+    }
+  }
+
+  // 2. Failsafe: Text-only group announcement
+  console.log(`📤 Sending text-only WhatsApp Group announcement to ${groupJid}...`);
+  const textRes = await sock.sendMessage(groupJid, { text: textMessage });
+  console.log(`✅ WhatsApp Group text announcement sent cleanly to ${groupJid}`);
+  return textRes;
 }
 
 module.exports = {
@@ -233,6 +263,5 @@ module.exports = {
   getStatus,
   getJoinedGroups,
   sendDirectMessage,
-  sendGroupMessage,
-  sendGroupMessageWithImage
+  sendGroupMessage
 };
