@@ -303,8 +303,23 @@ async function sendGroupMessage(groupJidStr, textMessage, imagePathOrBuffer) {
   return textRes;
 }
 
+async function reconnectWhatsApp() {
+  console.log('🔄 Manual WhatsApp reconnection & fresh QR generation triggered...');
+  reconnectAttempts = 0;
+  isConnected = false;
+  currentQr = null;
+  if (sock) {
+    try {
+      sock.end(new Error('Manual reconnect triggered'));
+    } catch (e) {}
+    sock = null;
+  }
+  return await connectToWhatsApp();
+}
+
 module.exports = {
   connectToWhatsApp,
+  reconnectWhatsApp,
   getStatus,
   getJoinedGroups,
   sendDirectMessage,

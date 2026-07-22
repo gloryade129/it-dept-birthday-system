@@ -165,6 +165,18 @@ app.get('/api/whatsapp/status', (req, res) => {
 });
 
 /**
+ * Force WhatsApp Reconnection & Fresh QR Generation
+ */
+app.post('/api/whatsapp/reconnect', async (req, res) => {
+  try {
+    reconnectWhatsApp().catch(err => console.error('WhatsApp manual reconnect error:', err));
+    res.json({ message: 'WhatsApp QR Code generation triggered.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Get joined WhatsApp Groups
  */
 app.get('/api/whatsapp/groups', async (req, res) => {

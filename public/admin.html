@@ -8,6 +8,9 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'><path d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z'/></svg>">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="shader.js" defer></script>
+  <style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
   <!-- WebGL Dynamic Shader Background -->
@@ -98,15 +101,19 @@
               <h2 style="color: #ffffff; font-size: 1.25rem; font-weight: 700;">WhatsApp Engine & QR Auth</h2>
               <p style="color: var(--text-muted); font-size: 0.8rem;">Manages WhatsApp Web automation for DMs and Group posts.</p>
             </div>
-            <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="checkWhatsAppStatus()">Refresh Connection</button>
+            <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="triggerWhatsAppReconnect()">Refresh Connection</button>
           </div>
           
           <div id="waDisconnectedView" style="text-align: center; padding: 1.5rem 1rem; display: none;">
             <p style="font-size: 0.88rem; margin-bottom: 1.25rem; color: var(--gold-accent); font-weight: 500;">
               Scan the QR Code with your phone camera in WhatsApp to connect:
             </p>
-            <div id="qrCodeContainer" style="background: #ffffff; padding: 16px; border-radius: var(--radius-md); display: inline-block; box-shadow: 0 0 35px rgba(255, 255, 255, 0.15);">
+            <div id="qrCodeContainer" style="background: #ffffff; padding: 16px; border-radius: var(--radius-md); display: none; box-shadow: 0 0 35px rgba(255, 255, 255, 0.15);">
               <img id="qrImage" src="" alt="WhatsApp QR Code" style="width: 210px; height: 210px; display: block;">
+            </div>
+            <div id="qrLoadingSpinner" style="display: block; padding: 1.5rem; color: var(--accent-primary);">
+              <div style="width: 36px; height: 36px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 0.75rem auto;"></div>
+              <p style="font-size: 0.82rem; font-weight: 500; color: #38bdf8;">Generating fresh WhatsApp QR Code...</p>
             </div>
             <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 1.25rem;">
               Open WhatsApp on your phone ➔ Settings ➔ Linked Devices ➔ Link a Device.
@@ -386,13 +393,32 @@
       loadSettings();
     }
 
+    let autoReconnectTriggered = false;
+
+    async function triggerWhatsAppReconnect() {
+      const qrCodeContainer = document.getElementById('qrCodeContainer');
+      const qrLoadingSpinner = document.getElementById('qrLoadingSpinner');
+      if (qrCodeContainer) qrCodeContainer.style.display = 'none';
+      if (qrLoadingSpinner) qrLoadingSpinner.style.display = 'block';
+
+      try {
+        await fetch('/api/whatsapp/reconnect', { method: 'POST' });
+        setTimeout(checkWhatsAppStatus, 1500);
+      } catch (err) {
+        console.error('Reconnect error:', err);
+      }
+    }
+
     async function checkWhatsAppStatus() {
       try {
         const res = await fetch('/api/whatsapp/status');
         const data = await res.json();
         const badge = document.getElementById('waStatusBadge');
-        
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const qrLoadingSpinner = document.getElementById('qrLoadingSpinner');
+
         if (data.connected) {
+          autoReconnectTriggered = false;
           badge.className = 'badge badge-success';
           badge.innerHTML = '<span class="status-dot status-dot-active"></span> WhatsApp Connected';
           document.getElementById('waDisconnectedView').style.display = 'none';
@@ -403,8 +429,19 @@
           badge.innerHTML = '<span class="status-dot status-dot-inactive"></span> WhatsApp Disconnected';
           document.getElementById('waConnectedView').style.display = 'none';
           document.getElementById('waDisconnectedView').style.display = 'block';
+
           if (data.qr) {
+            if (qrCodeContainer) qrCodeContainer.style.display = 'inline-block';
+            if (qrLoadingSpinner) qrLoadingSpinner.style.display = 'none';
             document.getElementById('qrImage').src = data.qr;
+          } else {
+            if (qrCodeContainer) qrCodeContainer.style.display = 'none';
+            if (qrLoadingSpinner) qrLoadingSpinner.style.display = 'block';
+
+            if (!autoReconnectTriggered) {
+              autoReconnectTriggered = true;
+              fetch('/api/whatsapp/reconnect', { method: 'POST' }).catch(console.error);
+            }
           }
         }
       } catch (err) {
