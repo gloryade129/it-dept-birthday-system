@@ -84,14 +84,18 @@
 
               <!-- Global Standard Native Date Picker Component -->
               <div class="form-group">
-                <label class="form-label" for="dobPicker">Date of Birth <span style="color: var(--danger);">*</span></label>
-                <input type="date" id="dobPicker" class="form-control" style="background: rgba(15, 23, 42, 0.9); color: #f1f5f9; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.75rem 1rem; width: 100%; font-family: inherit; font-size: 0.9rem;" required>
-                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Tap to select your birth date from the standard calendar.</div>
+                <label class="form-label" for="dobPicker" style="font-size: 0.95rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                  <span>🎂 Date of Birth</span> <span style="color: var(--danger); font-size: 1.1rem;">*</span>
+                </label>
+                <input type="date" id="dobPicker" class="form-control" style="background: rgba(15, 23, 42, 0.95); color: #f1f5f9; border: 2px solid #38bdf8; border-radius: var(--radius-md); padding: 0.85rem 1rem; width: 100%; font-family: inherit; font-size: 0.95rem; box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);" required>
+                <div style="font-size: 0.76rem; color: #fbbf24; margin-top: 6px; font-weight: 500;">
+                  ⚠️ Mandatory: Tap above to select your exact birth date from the calendar.
+                </div>
                 
-                <!-- Hidden inputs for backend submission -->
-                <input type="hidden" id="birthMonth" name="birthMonth" value="6" required>
-                <input type="hidden" id="birthDay" name="birthDay" value="15" required>
-                <input type="hidden" id="birthYear" name="birthYear" value="2004">
+                <!-- Hidden inputs for backend submission (starts 100% empty) -->
+                <input type="hidden" id="birthMonth" name="birthMonth" value="" required>
+                <input type="hidden" id="birthDay" name="birthDay" value="" required>
+                <input type="hidden" id="birthYear" name="birthYear" value="">
               </div>
 
               <div class="form-group">
@@ -192,17 +196,17 @@
       mobileDrawer.classList.remove('active');
     });
 
-    // --- Global Standard Native Date Picker Logic ---
+    // --- Global Standard Native Date Picker Logic (Starts 100% Empty) ---
     const dobPicker = document.getElementById('dobPicker');
     const birthMonthInput = document.getElementById('birthMonth');
     const birthDayInput = document.getElementById('birthDay');
     const birthYearInput = document.getElementById('birthYear');
 
-    // Set default initial value (2004-06-15)
-    dobPicker.value = "2004-06-15";
-    birthMonthInput.value = "6";
-    birthDayInput.value = "15";
-    birthYearInput.value = "2004";
+    // Ensure date starts completely empty
+    dobPicker.value = "";
+    birthMonthInput.value = "";
+    birthDayInput.value = "";
+    birthYearInput.value = "";
 
     dobPicker.addEventListener('change', () => {
       if (dobPicker.value) {
@@ -212,6 +216,10 @@
           birthMonthInput.value = parseInt(parts[1], 10);
           birthDayInput.value = parseInt(parts[2], 10);
         }
+      } else {
+        birthMonthInput.value = "";
+        birthDayInput.value = "";
+        birthYearInput.value = "";
       }
     });
 
@@ -236,6 +244,13 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (!dobPicker.value || !birthMonthInput.value || !birthDayInput.value) {
+        alert('⚠️ Please select your Date of Birth from the calendar before saving!');
+        dobPicker.focus();
+        dobPicker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
 
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span>Saving details...</span>';
