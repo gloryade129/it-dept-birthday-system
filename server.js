@@ -18,6 +18,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static frontend files (serves index.html on / automatically)
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Health Check Endpoints for Cloud Load Balancers & Pxxl Router
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
@@ -25,13 +28,6 @@ app.get('/health', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'IT Dept 25/26 Birthday Automation', uptime: process.uptime() });
-});
-
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Setup file uploads for student photos
