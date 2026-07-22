@@ -220,7 +220,7 @@ app.get('/api/logs', async (req, res) => {
 });
 
 /**
- * Generate and return Flyer PNG as base64 & Group Caption for Admin Portal 1-click Download
+ * Return Celebrant Uploaded Photo as base64 & Group Caption for Admin Portal
  */
 app.get('/api/flyer/:studentId', async (req, res) => {
   try {
@@ -237,24 +237,16 @@ app.get('/api/flyer/:studentId', async (req, res) => {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const birthDateStr = `${monthNames[parseInt(birthMonth, 10) - 1]} ${birthDay}`;
 
-    let userPhotoPath = null;
+    let photoBase64 = null;
     if (photoUrl) {
-      userPhotoPath = path.join(__dirname, 'public', photoUrl);
-    }
-
-    const flyerPath = await generateBirthdayFlyer({
-      fullName,
-      nickname,
-      birthDate: birthDateStr,
-      photoPath: userPhotoPath
-    });
-
-    // Read PNG and return as base64 data URI so admin panel can display/download
-    // regardless of whether it's hosted on Vercel or Pxxl
-    let flyerBase64 = null;
-    if (flyerPath && fs.existsSync(flyerPath)) {
-      const pngBuffer = fs.readFileSync(flyerPath);
-      flyerBase64 = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+      const cleanPath = photoUrl.replace(/^[/\\]+/, '');
+      const fullPath = path.join(__dirname, 'public', cleanPath);
+      if (fs.existsSync(fullPath)) {
+        const fileBuf = fs.readFileSync(fullPath);
+        const ext = path.extname(fullPath).toLowerCase();
+        const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        photoBase64 = `data:${mime};base64,${fileBuf.toString('base64')}`;
+      }
     }
 
     const settings = await getAllSettings();
@@ -271,16 +263,18 @@ app.get('/api/flyer/:studentId', async (req, res) => {
     const caption = renderTemplate(rawGroupTpl, templateData);
 
     res.json({
-      flyerBase64,
+      flyerBase64: photoBase64,
       caption,
       fullName,
-      nickname
+      nickname,
+      photoUrl
     });
   } catch (err) {
-    console.error('Flyer API Error:', err);
-    res.status(500).json({ error: 'Failed to generate flyer.' });
+    console.error('Photo Preview API Error:', err);
+    res.status(500).json({ error: 'Failed to retrieve celebrant photo preview.' });
   }
 });
+
 
 /**
  * Manual Trigger Birthday Wishes

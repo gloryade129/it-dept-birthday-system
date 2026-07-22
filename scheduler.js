@@ -250,22 +250,18 @@ async function runMorningGroupDispatches() {
         const text = renderTemplate(rawGroupTpl, templateData);
         
         const photoUrl = student.photoUrl || student.photourl;
-        let userPhotoPath = null;
+        let celebrantPhotoPath = null;
         if (photoUrl) {
-          userPhotoPath = photoUrl;
+          const cleanPath = photoUrl.replace(/^[/\\]+/, '');
+          const fullPath = path.join(__dirname, 'public', cleanPath);
+          if (fs.existsSync(fullPath)) {
+            celebrantPhotoPath = fullPath;
+          }
         }
 
-        // Generate dynamic branded birthday graphic flyer PNG image
-        const flyerPath = await generateBirthdayFlyer({
-          fullName: student.fullName || student.fullname,
-          nickname: student.nickname,
-          birthDate: birthDateStr,
-          photoPath: userPhotoPath
-        });
-
-        // Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
-        await sendDirectMessage(adminPhone, text, flyerPath);
-        console.log(`✅ Morning Graphic Flyer & Group Announcement delivered to Class Rep WhatsApp DM (${adminPhone}) ready to forward!`);
+        // Deliver Group Announcement & Celebrant Uploaded Photo directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
+        await sendDirectMessage(adminPhone, text, celebrantPhotoPath);
+        console.log(`✅ Morning Group Announcement + Celebrant Photo delivered to Class Rep WhatsApp DM (${adminPhone})!`);
 
         await db.asyncRun(
           'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',
@@ -358,21 +354,18 @@ async function triggerManualDispatch(studentId, channels = ['dm', 'email', 'grou
       const adminPhone = settings.adminPhone || '09168047236';
 
       const photoUrl = student.photoUrl || student.photourl;
-      let userPhotoPath = null;
+      let celebrantPhotoPath = null;
       if (photoUrl) {
-        userPhotoPath = photoUrl;
+        const cleanPath = photoUrl.replace(/^[/\\]+/, '');
+        const fullPath = path.join(__dirname, 'public', cleanPath);
+        if (fs.existsSync(fullPath)) {
+          celebrantPhotoPath = fullPath;
+        }
       }
 
-      const flyerPath = await generateBirthdayFlyer({
-        fullName: student.fullName || student.fullname,
-        nickname: student.nickname,
-        birthDate: birthDateStr,
-        photoPath: userPhotoPath
-      });
-
-      // Deliver Group Announcement & Graphic Flyer directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
-      await sendDirectMessage(adminPhone, text, flyerPath);
-      console.log(`✅ Graphic Flyer & Group Announcement delivered to Class Rep WhatsApp DM (${adminPhone}) ready to forward!`);
+      // Deliver Group Announcement & Celebrant Uploaded Photo directly to Class Rep WhatsApp DM (09168047236) for 1-tap forwarding
+      await sendDirectMessage(adminPhone, text, celebrantPhotoPath);
+      console.log(`✅ Group Announcement + Celebrant Photo delivered to Class Rep WhatsApp DM (${adminPhone})!`);
 
       await db.asyncRun(
         'INSERT INTO dispatch_logs (studentid, year, channel, status) VALUES (?, ?, ?, ?)',

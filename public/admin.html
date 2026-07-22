@@ -576,7 +576,7 @@
       try {
         const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
         if (res.ok) {
-          showToast('Student record deleted.', 'success');
+          showToast('Student deleted successfully.', 'success');
           loadStudents();
         } else {
           showToast('Failed to delete student.', 'error');
@@ -588,35 +588,46 @@
 
     async function viewFlyer(id, name) {
       try {
-        showToast(`Generating graphic flyer for ${name}...`, 'info');
+        showToast(`Loading photo preview for ${name}...`, 'info');
         const res = await fetch(`/api/flyer/${id}`);
         const data = await res.json();
-        if (res.ok && data.flyerBase64) {
-          // Display image directly from base64 data URI
-          document.getElementById('flyerModalImg').src = data.flyerBase64;
+        if (res.ok) {
           document.getElementById('flyerModalCaption').value = data.caption;
           document.getElementById('flyerModalTitle').textContent = `${data.fullName} (${data.nickname || 'Celebrant'})`;
 
-          // Create a downloadable blob URL from base64
-          const base64Data = data.flyerBase64.split(',')[1];
-          const byteCharacters = atob(base64Data);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: 'image/png' });
-          const blobUrl = URL.createObjectURL(blob);
+          const imgEl = document.getElementById('flyerModalImg');
+          const noPhotoEl = document.getElementById('noPhotoNotice');
           const dlBtn = document.getElementById('flyerModalDownloadBtn');
-          dlBtn.href = blobUrl;
-          dlBtn.download = `Birthday_Flyer_${data.fullName.replace(/\s+/g, '_')}.png`;
+
+          if (data.flyerBase64) {
+            imgEl.src = data.flyerBase64;
+            imgEl.style.display = 'block';
+            if (noPhotoEl) noPhotoEl.style.display = 'none';
+
+            const base64Data = data.flyerBase64.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/jpeg' });
+            const blobUrl = URL.createObjectURL(blob);
+            dlBtn.href = blobUrl;
+            dlBtn.download = `Celebrant_Photo_${data.fullName.replace(/\s+/g, '_')}.jpg`;
+            dlBtn.style.display = 'inline-flex';
+          } else {
+            imgEl.style.display = 'none';
+            if (noPhotoEl) noPhotoEl.style.display = 'block';
+            dlBtn.style.display = 'none';
+          }
 
           document.getElementById('flyerModal').style.display = 'flex';
         } else {
-          showToast(data.error || 'Could not generate flyer.', 'error');
+          showToast(data.error || 'Could not load photo preview.', 'error');
         }
       } catch (err) {
-        showToast('Error generating flyer: ' + err.message, 'error');
+        showToast('Error loading preview: ' + err.message, 'error');
       }
     }
 
@@ -704,14 +715,17 @@
     }
   </script>
 
-  <!-- FLYER PREVIEW & DOWNLOAD MODAL DIALOG -->
+  <!-- PHOTO PREVIEW & ANNOUNCEMENT CAPTION MODAL DIALOG -->
   <div id="flyerModal" style="display: none; position: fixed; inset: 0; background: rgba(5, 8, 17, 0.88); backdrop-filter: blur(12px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
     <div class="glass-card" style="max-width: 520px; width: 100%; border: 1px solid var(--border-glow); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center; position: relative; max-height: 90vh; overflow-y: auto;">
       <button onclick="closeFlyerModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
-      <h3 id="flyerModalTitle" style="color: #ffffff; font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem;">Celebrant Birthday Flyer</h3>
+      <h3 id="flyerModalTitle" style="color: #ffffff; font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem;">Celebrant Photo &amp; Group Announcement</h3>
       
       <div style="border-radius: 16px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 1rem; background: #070b19;">
-        <img id="flyerModalImg" src="" alt="Flyer Preview" style="width: 100%; height: auto; display: block;">
+        <img id="flyerModalImg" src="" alt="Celebrant Photo" style="width: 100%; max-height: 360px; object-fit: cover; display: block;">
+        <div id="noPhotoNotice" style="display: none; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.85rem;">
+          ℹ️ No photo was uploaded by this celebrant.<br/>The group announcement will be delivered as text-only.
+        </div>
       </div>
 
       <div style="margin-bottom: 1rem; text-align: left;">
@@ -720,8 +734,8 @@
       </div>
 
       <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
-        <a id="flyerModalDownloadBtn" href="" download="Birthday_Flyer.png" target="_blank" class="btn-liquid btn-liquid-primary" style="text-decoration: none; font-size: 0.82rem; padding: 0.6rem 1.2rem; display: inline-flex; align-items: center; gap: 0.4rem;">
-          📥 Download Flyer PNG
+        <a id="flyerModalDownloadBtn" href="" download="Celebrant_Photo.jpg" target="_blank" class="btn-liquid btn-liquid-primary" style="text-decoration: none; font-size: 0.82rem; padding: 0.6rem 1.2rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+          📥 Download Celebrant Photo
         </a>
         <button class="btn-liquid" style="font-size: 0.82rem; padding: 0.6rem 1.2rem;" onclick="copyFlyerCaption()">
           📋 Copy Caption
