@@ -77,7 +77,7 @@ app.post('/api/students', upload.single('photo'), async (req, res) => {
     const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     const result = await db.asyncRun(
-      `INSERT INTO students (fullName, nickname, birthMonth, birthDay, birthYear, phone, email, photoUrl, customNote) 
+      `INSERT INTO students (fullname, nickname, birthmonth, birthday, birthyear, phone, email, photourl, customnote) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [fullName, nickname || null, parseInt(birthMonth), parseInt(birthDay), birthYear ? parseInt(birthYear) : null, phone, email, photoUrl, customNote || null]
     );
@@ -111,15 +111,27 @@ app.post('/api/students', upload.single('photo'), async (req, res) => {
 app.get('/api/students', async (req, res) => {
   try {
     const students = await db.asyncAll(`
-      SELECT id, fullName, nickname, birthMonth, birthDay, birthYear, phone, email, photoUrl, customNote, createdAt 
+      SELECT 
+        id,
+        fullname, 
+        nickname, 
+        birthmonth, 
+        birthday, 
+        birthyear, 
+        phone, 
+        email, 
+        photourl, 
+        customnote, 
+        createdat
       FROM students 
-      ORDER BY birthMonth ASC, birthDay ASC
+      ORDER BY birthmonth ASC, birthday ASC
     `);
     res.json(students);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch registered students.' });
   }
 });
+
 
 // -------------------------------------------------------------
 // ADMIN ENDPOINTS
@@ -190,10 +202,12 @@ app.post('/api/settings', async (req, res) => {
 app.get('/api/logs', async (req, res) => {
   try {
     const logs = await db.asyncAll(`
-      SELECT dl.*, s.fullName, s.nickname, s.phone, s.email 
+      SELECT 
+        dl.id, dl.studentid, dl.year, dl.channel, dl.status, dl.attemptedat, dl.errormessage,
+        s.fullname, s.nickname, s.phone, s.email
       FROM dispatch_logs dl 
-      LEFT JOIN students s ON dl.studentId = s.id 
-      ORDER BY dl.attemptedAt DESC 
+      LEFT JOIN students s ON dl.studentid = s.id 
+      ORDER BY dl.attemptedat DESC 
       LIMIT 100
     `);
     res.json(logs);
@@ -231,3 +245,4 @@ app.listen(PORT, '0.0.0.0', () => {
     console.error('Database init warning:', err.message);
   });
 });
+

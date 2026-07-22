@@ -44,13 +44,14 @@ const db = {
       return new Promise(async (resolve, reject) => {
         try {
           let pgSql = formatSqlForPg(sql);
-          // Only append RETURNING * if it's an INSERT query and doesn't already specify RETURNING
-          if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
+          const trimmed = pgSql.trim().toUpperCase();
+          // Only append RETURNING * for pure INSERT statements (not CREATE TABLE, etc.)
+          if (trimmed.startsWith('INSERT') && !trimmed.includes('RETURNING')) {
             pgSql += ' RETURNING *';
           }
           const res = await pgPool.query(pgSql, params);
           const firstRow = res.rows && res.rows[0] ? res.rows[0] : {};
-          const lastID = firstRow.id || firstRow.key || null;
+          const lastID = firstRow.id || null;
           resolve({ lastID, rowCount: res.rowCount });
         } catch (err) {
           reject(err);
@@ -127,28 +128,28 @@ async function initDatabase() {
       await db.asyncRun(`
         CREATE TABLE IF NOT EXISTS students (
           id SERIAL PRIMARY KEY,
-          fullName VARCHAR(255) NOT NULL,
+          fullname VARCHAR(255) NOT NULL,
           nickname VARCHAR(255),
-          birthMonth INTEGER NOT NULL,
-          birthDay INTEGER NOT NULL,
-          birthYear INTEGER,
+          birthmonth INTEGER NOT NULL,
+          birthday INTEGER NOT NULL,
+          birthyear INTEGER,
           phone VARCHAR(50) NOT NULL,
           email VARCHAR(255) NOT NULL,
-          photoUrl TEXT,
-          customNote TEXT,
-          createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          photourl TEXT,
+          customnote TEXT,
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
       await db.asyncRun(`
         CREATE TABLE IF NOT EXISTS dispatch_logs (
           id SERIAL PRIMARY KEY,
-          studentId INTEGER NOT NULL,
+          studentid INTEGER NOT NULL,
           year INTEGER NOT NULL,
           channel VARCHAR(50) NOT NULL,
           status VARCHAR(50) NOT NULL,
-          attemptedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          errorMessage TEXT
+          attemptedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          errormessage TEXT
         )
       `);
 
@@ -162,28 +163,28 @@ async function initDatabase() {
       await db.asyncRun(`
         CREATE TABLE IF NOT EXISTS students (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          fullName TEXT NOT NULL,
+          fullname TEXT NOT NULL,
           nickname TEXT,
-          birthMonth INTEGER NOT NULL,
-          birthDay INTEGER NOT NULL,
-          birthYear INTEGER,
+          birthmonth INTEGER NOT NULL,
+          birthday INTEGER NOT NULL,
+          birthyear INTEGER,
           phone TEXT NOT NULL,
           email TEXT NOT NULL,
-          photoUrl TEXT,
-          customNote TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+          photourl TEXT,
+          customnote TEXT,
+          createdat DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
       await db.asyncRun(`
         CREATE TABLE IF NOT EXISTS dispatch_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          studentId INTEGER NOT NULL,
+          studentid INTEGER NOT NULL,
           year INTEGER NOT NULL,
           channel TEXT NOT NULL,
           status TEXT NOT NULL,
-          attemptedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-          errorMessage TEXT,
+          attemptedat DATETIME DEFAULT CURRENT_TIMESTAMP,
+          errormessage TEXT,
           FOREIGN KEY(studentId) REFERENCES students(id) ON DELETE CASCADE
         )
       `);
@@ -284,3 +285,4 @@ module.exports = {
   setSetting,
   getAllSettings
 };
+

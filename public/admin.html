@@ -460,48 +460,59 @@
 
       students.forEach(s => {
         const tr = document.createElement('tr');
-        const photoSrc = s.photoUrl || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2394a3b8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
+        // Support both camelCase (SQLite) and lowercase (PostgreSQL) column names
+        const fullName = s.fullName || s.fullname || '';
+        const nickname = s.nickname || '';
+        const birthMonth = s.birthMonth || s.birthmonth;
+        const birthDay = s.birthDay || s.birthday;
+        const phone = s.phone || '';
+        const email = s.email || '';
+        const photoUrl = s.photoUrl || s.photourl;
+        const id = s.id;
+
+        const photoSrc = photoUrl 
+          ? photoUrl
+          : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2394a3b8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
         
-        tr.innerHTML = `
-          <td><img src="${photoSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-glow);"></td>
-          <td>
-            <strong style="color: #ffffff;">${s.fullName}</strong>
-            ${s.nickname ? `<div style="font-size: 0.75rem; color: var(--accent-primary);">"${s.nickname}"</div>` : ''}
-          </td>
-          <td><span class="badge badge-warning" style="font-weight: 600;">${months[s.birthMonth - 1]} ${s.birthDay}</span></td>
-          <td><a href="https://wa.me/${s.phone.replace(/[^0-9]/g, '')}" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 500;">${s.phone}</a></td>
-          <td>${s.email}</td>
-          <td>
-            <button class="btn-liquid" style="font-size: 0.74rem; padding: 0.3rem 0.65rem;" onclick="triggerManual(${s.id}, '${s.fullName}')">Send Wish</button>
-            <button class="btn-liquid" style="font-size: 0.74rem; padding: 0.3rem 0.65rem; color: #fca5a5; border-color: rgba(239, 68, 68, 0.3);" onclick="deleteStudent(${s.id})">Delete</button>
-          </td>
-        `;
+        tr.innerHTML = [
+          '<td><img src="' + photoSrc + '" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-glow);" onerror="this.style.display=\'none\'"></td>',
+          '<td><strong style="color: #ffffff;">' + fullName + '</strong>' + (nickname ? '<div style="font-size: 0.75rem; color: var(--accent-primary);">\"' + nickname + '\"</div>' : '') + '</td>',
+          '<td><span class="badge badge-warning" style="font-weight: 600;">' + months[birthMonth - 1] + ' ' + birthDay + '</span></td>',
+          '<td><a href="https://wa.me/' + phone.replace(/[^0-9]/g, '') + '" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-weight: 500;">' + phone + '</a></td>',
+          '<td>' + email + '</td>',
+          '<td><button class="btn-liquid" style="font-size: 0.74rem; padding: 0.3rem 0.65rem;" onclick="triggerManual(' + id + ', \'' + fullName.replace(/'/g, "\\'"  ) + '\')">' + '&#127873; Send Wish</button>' +
+          '<button class="btn-liquid" style="font-size: 0.74rem; padding: 0.3rem 0.65rem; color: #fca5a5; border-color: rgba(239, 68, 68, 0.3);" onclick="deleteStudent(' + id + ')">Delete</button></td>'
+        ].join('');
         tbody.appendChild(tr);
       });
     }
 
     function filterRoster() {
       const query = document.getElementById('rosterSearch').value.toLowerCase();
-      const filtered = allStudents.filter(s => 
-        s.fullName.toLowerCase().includes(query) ||
-        (s.nickname && s.nickname.toLowerCase().includes(query)) ||
-        s.email.toLowerCase().includes(query)
-      );
+      const filtered = allStudents.filter(s => {
+        const fn = (s.fullName || s.fullname || '').toLowerCase();
+        const nick = (s.nickname || '').toLowerCase();
+        const em = (s.email || '').toLowerCase();
+        return fn.includes(query) || nick.includes(query) || em.includes(query);
+      });
       renderStudents(filtered);
     }
 
     function exportRosterCSV() {
       if (allStudents.length === 0) return showToast('No student records to export.', 'error');
-      
       let csvContent = "data:text/csv;charset=utf-8,ID,Full Name,Nickname,Birth Month,Birth Day,Birth Year,Phone,Email,Wish Note\n";
       allStudents.forEach(s => {
-        csvContent += `"${s.id}","${s.fullName}","${s.nickname || ''}","${s.birthMonth}","${s.birthDay}","${s.birthYear || ''}","${s.phone}","${s.email}","${s.customNote || ''}"\n`;
+        const fn = s.fullName || s.fullname || '';
+        const bm = s.birthMonth || s.birthmonth || '';
+        const bd = s.birthDay || s.birthday || '';
+        const by = s.birthYear || s.birthyear || '';
+        const cn = s.customNote || s.customnote || '';
+        csvContent += '"' + s.id + '","' + fn + '","' + (s.nickname||'') + '","' + bm + '","' + bd + '","' + by + '","' + s.phone + '","' + s.email + '","' + cn + '"\n';
       });
-
       const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `IT_Dept_2526_Birthday_Roster_${new Date().toISOString().slice(0,10)}.csv`);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', 'IT_Dept_2526_Birthday_Roster_' + new Date().toISOString().slice(0,10) + '.csv');
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -576,15 +587,15 @@
         logs.forEach(l => {
           const tr = document.createElement('tr');
           const statusClass = l.status === 'success' ? 'badge-success' : 'badge-danger';
-          
-          tr.innerHTML = `
-            <td>${new Date(l.attemptedAt).toLocaleString()}</td>
-            <td><strong style="color: #ffffff;">${l.fullName || 'ID: ' + l.studentId}</strong></td>
-            <td><span class="badge badge-warning">${l.channel.toUpperCase()}</span></td>
-            <td>${l.year}</td>
-            <td><span class="badge ${statusClass}">${l.status.toUpperCase()}</span></td>
-            <td style="font-size: 0.78rem; color: var(--text-muted);">${l.errorMessage || 'Dispatched Cleanly'}</td>
-          `;
+          const fn = l.fullName || l.fullname || ('ID: ' + (l.studentId || l.studentid));
+          const ts = l.attemptedAt || l.attemptedat;
+          const errMsg = l.errorMessage || l.errormessage;
+          tr.innerHTML = '<td>' + new Date(ts).toLocaleString() + '</td>' +
+            '<td><strong style="color: #ffffff;">' + fn + '</strong></td>' +
+            '<td><span class="badge badge-warning">' + l.channel.toUpperCase() + '</span></td>' +
+            '<td>' + l.year + '</td>' +
+            '<td><span class="badge ' + statusClass + '">' + l.status.toUpperCase() + '</span></td>' +
+            '<td style="font-size: 0.78rem; color: var(--text-muted);">' + (errMsg || 'Dispatched Cleanly') + '</td>';
           tbody.appendChild(tr);
         });
       } catch (err) {
