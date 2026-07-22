@@ -65,6 +65,21 @@ async function backupAuthToDatabase() {
 }
 
 /**
+ * Purge local session files and database backup cleanly
+ */
+async function clearSessionData() {
+  console.log('🧹 Purging stale/corrupted WhatsApp session files & DB backup...');
+  try {
+    if (fs.existsSync(authFolder)) {
+      fs.rmSync(authFolder, { recursive: true, force: true });
+    }
+  } catch (e) {
+    console.warn('Could not delete local authFolder:', e.message);
+  }
+  await setSetting('whatsapp_session_backup', '');
+}
+
+/**
  * Clean phone number to WhatsApp JID format
  * Example: "08012345678" -> "2348012345678@s.whatsapp.net" (Assuming Nigerian country code 234 if starts with 0)
  */
@@ -304,7 +319,7 @@ async function sendGroupMessage(groupJidStr, textMessage, imagePathOrBuffer) {
 }
 
 async function reconnectWhatsApp() {
-  console.log('🔄 Manual WhatsApp reconnection & fresh QR generation triggered...');
+  console.log('🔄 Manual WhatsApp reconnection triggered...');
   reconnectAttempts = 0;
   isConnected = false;
   currentQr = null;
@@ -317,9 +332,27 @@ async function reconnectWhatsApp() {
   return await connectToWhatsApp();
 }
 
+async function resetWhatsAppSession() {
+  console.log('🧹 Purging stale session keys and generating fresh QR code...');
+  reconnectAttempts = 0;
+  isConnected = false;
+  connectedUser = null;
+  currentQr = null;
+  if (sock) {
+    try {
+      sock.end(new Error('Manual session reset triggered'));
+    } catch (e) {}
+    sock = null;
+  }
+  await clearSessionData();
+  return await connectToWhatsApp();
+}
+
 module.exports = {
   connectToWhatsApp,
   reconnectWhatsApp,
+  resetWhatsAppSession,
+  clearSessionData,
   getStatus,
   getJoinedGroups,
   sendDirectMessage,

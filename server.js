@@ -177,6 +177,18 @@ app.post('/api/whatsapp/reconnect', async (req, res) => {
 });
 
 /**
+ * Purge Stale WhatsApp Session & Generate Fresh QR Code (Fix Bad MAC / Desync)
+ */
+app.post('/api/whatsapp/reset', async (req, res) => {
+  try {
+    resetWhatsAppSession().catch(err => console.error('WhatsApp reset error:', err));
+    res.json({ message: 'WhatsApp session purged. Fresh QR Code generating...' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Get joined WhatsApp Groups
  */
 app.get('/api/whatsapp/groups', async (req, res) => {

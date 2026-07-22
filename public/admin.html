@@ -101,7 +101,10 @@
               <h2 style="color: #ffffff; font-size: 1.25rem; font-weight: 700;">WhatsApp Engine & QR Auth</h2>
               <p style="color: var(--text-muted); font-size: 0.8rem;">Manages WhatsApp Web automation for DMs and Group posts.</p>
             </div>
-            <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="triggerWhatsAppReconnect()">Refresh Connection</button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="triggerWhatsAppReconnect()">Refresh Connection</button>
+              <button class="btn-liquid" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;" onclick="triggerWhatsAppReset()">Reset & Relink Session</button>
+            </div>
           </div>
           
           <div id="waDisconnectedView" style="text-align: center; padding: 1.5rem 1rem; display: none;">
@@ -406,6 +409,21 @@
         setTimeout(checkWhatsAppStatus, 1500);
       } catch (err) {
         console.error('Reconnect error:', err);
+      }
+    }
+
+    async function triggerWhatsAppReset() {
+      if (!confirm('This will purge all old WhatsApp session files and generate a 100% fresh QR Code. Proceed?')) return;
+      const qrCodeContainer = document.getElementById('qrCodeContainer');
+      const qrLoadingSpinner = document.getElementById('qrLoadingSpinner');
+      if (qrCodeContainer) qrCodeContainer.style.display = 'none';
+      if (qrLoadingSpinner) qrLoadingSpinner.style.display = 'block';
+
+      try {
+        await fetch('/api/whatsapp/reset', { method: 'POST' });
+        setTimeout(checkWhatsAppStatus, 1500);
+      } catch (err) {
+        console.error('Reset error:', err);
       }
     }
 
