@@ -20,16 +20,19 @@ function formatBirthDate(month, day) {
 /**
  * Send Instant Welcome DM and Email upon form submission (100% Automated)
  */
-async function sendInstantRegistrationConfirmations(student) {
+async function sendInstantRegistrationConfirmations(studentId, studentData) {
+  const student = studentData || studentId; // Support both (student) and (id, data) call styles
   const settings = await getAllSettings();
   const birthDateStr = formatBirthDate(student.birthMonth, student.birthDay);
 
+  const id = typeof studentId === 'number' ? studentId : student.id;
+
   const templateData = {
-    fullName: student.fullName,
-    nickname: student.nickname || student.fullName.split(' ')[0],
+    fullName: student.fullName || '',
+    nickname: student.nickname || (student.fullName ? student.fullName.split(' ')[0] : 'Friend'),
     birthDate: birthDateStr,
-    phone: student.phone,
-    email: student.email,
+    phone: student.phone || '',
+    email: student.email || '',
     department: 'Information Technology 25/26'
   };
 
@@ -39,14 +42,14 @@ async function sendInstantRegistrationConfirmations(student) {
     await sendDirectMessage(student.phone, welcomeText);
     await db.asyncRun(
       'INSERT INTO dispatch_logs (studentId, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
-      [student.id, new Date().getFullYear(), 'welcome_dm', 'success', null]
+      [id, new Date().getFullYear(), 'welcome_dm', 'success', null]
     );
     console.log(`✅ Automated Welcome DM sent to ${student.fullName}`);
   } catch (err) {
     console.error(`❌ Automated Welcome DM Failed for ${student.fullName}:`, err.message);
     await db.asyncRun(
       'INSERT INTO dispatch_logs (studentId, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
-      [student.id, new Date().getFullYear(), 'welcome_dm', 'failed', err.message]
+      [id, new Date().getFullYear(), 'welcome_dm', 'failed', err.message]
     );
   }
 
@@ -57,14 +60,14 @@ async function sendInstantRegistrationConfirmations(student) {
     await sendEmail({ to: student.email, subject, html });
     await db.asyncRun(
       'INSERT INTO dispatch_logs (studentId, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
-      [student.id, new Date().getFullYear(), 'welcome_email', 'success', null]
+      [id, new Date().getFullYear(), 'welcome_email', 'success', null]
     );
     console.log(`✅ Automated Welcome Email sent to ${student.fullName}`);
   } catch (err) {
     console.error(`❌ Automated Welcome Email Failed for ${student.fullName}:`, err.message);
     await db.asyncRun(
       'INSERT INTO dispatch_logs (studentId, year, channel, status, errorMessage) VALUES (?, ?, ?, ?, ?)',
-      [student.id, new Date().getFullYear(), 'welcome_email', 'failed', err.message]
+      [id, new Date().getFullYear(), 'welcome_email', 'failed', err.message]
     );
   }
 }
