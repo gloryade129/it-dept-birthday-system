@@ -82,11 +82,18 @@ function formatPhoneToJid(phoneStr) {
 }
 
 /**
- * Format group JID string to Baileys @g.us format
+ * Robustly extract & format group JID string to Baileys @g.us format
+ * Handles cases where user stored "Testing 1 (120363427150795692@g.us)" or raw JID
  */
 function formatGroupJid(groupStr) {
   let cleaned = (groupStr || '').trim();
   if (!cleaned) return '';
+  
+  // Extract pure JID pattern like 120363427150795692@g.us or 2348012345-1612345@g.us
+  const jidMatch = cleaned.match(/([a-zA-Z0-9._-]+@g\.us)/);
+  if (jidMatch) {
+    return jidMatch[1];
+  }
   if (!cleaned.endsWith('@g.us')) {
     cleaned = cleaned + '@g.us';
   }
@@ -200,7 +207,7 @@ async function getJoinedGroups() {
 
 async function sendDirectMessage(phoneStr, textMessage) {
   if (!sock || !isConnected) {
-    throw new Error('WhatsApp client is not connected.');
+    throw new Error('WhatsApp client is not connected. Please scan QR Code in Admin Portal.');
   }
   const jid = formatPhoneToJid(phoneStr);
   console.log(`📤 Sending direct WhatsApp message to ${jid}...`);
@@ -213,12 +220,12 @@ async function sendDirectMessage(phoneStr, textMessage) {
  */
 async function sendGroupMessage(groupJidStr, textMessage, imagePathOrBuffer) {
   if (!sock || !isConnected) {
-    throw new Error('WhatsApp client is not connected.');
+    throw new Error('WhatsApp client is not connected. Please scan QR Code in Admin Portal.');
   }
 
   const groupJid = formatGroupJid(groupJidStr);
   if (!groupJid) {
-    throw new Error('Invalid WhatsApp Group JID.');
+    throw new Error(`Invalid WhatsApp Group JID: "${groupJidStr}". Please re-select the target group in Admin Portal.`);
   }
 
   let imageBuffer = null;
@@ -239,12 +246,12 @@ async function sendGroupMessage(groupJidStr, textMessage, imagePathOrBuffer) {
   // 1. Try sending message with PNG/JPEG image attachment
   if (imageBuffer) {
     try {
-      console.log(`📤 Sending WhatsApp Group announcement with flyer image to ${groupJid}...`);
+      console.log(`📤 Sending WhatsApp Group announcement with flyer image to JID "${groupJid}"...`);
       const res = await sock.sendMessage(groupJid, {
         image: imageBuffer,
         caption: textMessage
       });
-      console.log(`✅ WhatsApp Group announcement with flyer sent cleanly to ${groupJid}`);
+      console.log(`✅ WhatsApp Group announcement with flyer sent cleanly to JID "${groupJid}"`);
       return res;
     } catch (imgErr) {
       console.warn(`⚠️ Group image dispatch failed (${imgErr.message}). Falling back to text-only group announcement...`);
@@ -252,9 +259,9 @@ async function sendGroupMessage(groupJidStr, textMessage, imagePathOrBuffer) {
   }
 
   // 2. Failsafe: Text-only group announcement
-  console.log(`📤 Sending text-only WhatsApp Group announcement to ${groupJid}...`);
+  console.log(`📤 Sending text-only WhatsApp Group announcement to JID "${groupJid}"...`);
   const textRes = await sock.sendMessage(groupJid, { text: textMessage });
-  console.log(`✅ WhatsApp Group text announcement sent cleanly to ${groupJid}`);
+  console.log(`✅ WhatsApp Group text announcement sent cleanly to JID "${groupJid}"`);
   return textRes;
 }
 

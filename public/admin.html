@@ -528,7 +528,15 @@
           body: JSON.stringify({ studentId: id })
         });
         const data = await res.json();
-        showToast(`Manual dispatch triggered for ${name}!`, 'success');
+        if (res.ok) {
+          const resMap = data.result || {};
+          const groupInfo = resMap.group ? (resMap.group.status === 'success' ? 'Group: Sent ✅' : `Group Failed ❌ (${resMap.group.error})`) : '';
+          const dmInfo = resMap.dm ? (resMap.dm.status === 'success' ? 'DM: Sent ✅' : `DM Failed ❌ (${resMap.dm.error})`) : '';
+          const hasError = resMap.group?.status === 'failed' || resMap.dm?.status === 'failed';
+          showToast(`Wish fired for ${name}! ${groupInfo} | ${dmInfo}`, hasError ? 'error' : 'success');
+        } else {
+          showToast(`Error: ${data.error}`, 'error');
+        }
       } catch (err) {
         showToast('Error triggering manual dispatch.', 'error');
       }
