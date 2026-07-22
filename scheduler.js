@@ -36,10 +36,6 @@ function normalizeStudent(s) {
     id,
     fullName,
     nickname,
-  return {
-    id,
-    fullName,
-    nickname,
     birthMonth,
     birthDay,
     phone,
@@ -117,6 +113,9 @@ async function sendInstantRegistrationConfirmations(studentId, studentData) {
     );
   }
 
+  // 2. Instant Email Welcome Confirmation (Registration Copy)
+  try {
+    if (student.email) {
       const defaultWelcomeEmail = `<div style="font-family: 'Poppins', 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #080c14; color: #f1f5f9; border-radius: 16px; padding: 32px; border: 1px solid #1e293b;">
   <h2 style="color: #38bdf8; text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 4px;">Registration Confirmation Copy 📋</h2>
   <p style="text-align: center; color: #94a3b8; font-size: 14px; margin-top: 0;">Information Technology Department 25/26 Birthday Network</p>
