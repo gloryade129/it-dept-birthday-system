@@ -207,10 +207,32 @@ async function sendGroupMessageWithImage(groupJid, textMessage, imageBuffer) {
   return result;
 }
 
+/**
+ * Alias used by scheduler.js — accepts file path string OR raw Buffer.
+ * Automatically reads file from disk if a path string is provided.
+ */
+async function sendGroupMessage(groupJid, textMessage, imagePathOrBuffer) {
+  let imageBuffer = null;
+  if (imagePathOrBuffer) {
+    if (typeof imagePathOrBuffer === 'string') {
+      // It's a file path — read it into a Buffer
+      try {
+        imageBuffer = fs.readFileSync(imagePathOrBuffer);
+      } catch (err) {
+        console.warn('Could not read flyer image file:', err.message);
+      }
+    } else {
+      imageBuffer = imagePathOrBuffer;
+    }
+  }
+  return sendGroupMessageWithImage(groupJid, textMessage, imageBuffer);
+}
+
 module.exports = {
   connectToWhatsApp,
   getStatus,
   getJoinedGroups,
   sendDirectMessage,
+  sendGroupMessage,
   sendGroupMessageWithImage
 };
